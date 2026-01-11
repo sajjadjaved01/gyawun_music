@@ -90,10 +90,15 @@ class _BackupStoragePage extends StatelessWidget {
                             trailing: FilledButton.tonal(
                               child: const Text('Change'),
                               onPressed: () async {
+                                final appFolder = Directory(state.appFolder);
+                                final rootDirectory = await appFolder.exists()
+                                    ? appFolder
+                                    : Directory(state.defaultPath);
+                                if (!context.mounted) return;
                                 final dir = await FolderPicker.pick(
                                   context: context,
                                   allowFolderCreation: true,
-                                  rootDirectory: Directory(state.appFolder),
+                                  rootDirectory: rootDirectory,
                                 );
                                 if (dir != null) {
                                   cubit.setAppFolder(dir.path);

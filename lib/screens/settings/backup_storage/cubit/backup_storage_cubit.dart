@@ -19,7 +19,10 @@ class BackupStorageCubit extends Cubit<BackupStorageState> {
 
   BackupStorageCubit()
     : super(
-        BackupStorageState(appFolder: GetIt.I<SettingsManager>().appFolder),
+        BackupStorageState(
+          appFolder: GetIt.I<SettingsManager>().appFolder,
+          defaultPath: FileStorage.defaultPath,
+        ),
       ) {
     _listener = _emit;
     _settingsManager.addListener(_listener);
