@@ -1,18 +1,19 @@
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
-import 'package:hive/hive.dart';
 import 'package:yt_music/ytmusic.dart';
 
-import '../../../services/settings_manager.dart';
+import '../../../services/history_manager.dart';
 
 part 'search_state.dart';
 
 class SearchCubit extends Cubit<SearchState> {
   final YTMusic _ytmusic;
   Map<String, dynamic>? endpoint;
-  final SettingsManager _settingsManager = GetIt.I<SettingsManager>();
+  late final SearchHistory _searchHistory;
+
   SearchCubit(this._ytmusic, {this.endpoint}) : super(SearchInitial()) {
+    _searchHistory = GetIt.I<HistoryManager>().searches;
     if (endpoint != null) {
       search('');
     }
@@ -21,10 +22,7 @@ class SearchCubit extends Cubit<SearchState> {
   Future<void> search(String query) async {
     emit(const SearchLoading());
     try {
-      if (_settingsManager.searchHistory) {
-        await Hive.box('SEARCH_HISTORY').delete(query.toLowerCase());
-        await Hive.box('SEARCH_HISTORY').put(query.toLowerCase(), query);
-      }
+      await _searchHistory.add(query);
       final feed = await _ytmusic.search(query, endpoint: endpoint);
       emit(
         SearchSuccess(

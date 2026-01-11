@@ -6,6 +6,7 @@ import 'package:gyawun/services/favourites_manager.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../../services/library.dart';
+import '../../../services/history_manager.dart';
 
 part 'library_state.dart';
 
@@ -15,7 +16,7 @@ class LibraryCubit extends Cubit<LibraryState> {
   late final Box _libraryBox;
   late final FavouritesManager _favouritesManager;
   late final DownloadManager _downloadsManager;
-  late final Box _historyBox;
+  late final SongHistory _songHistory;
 
   late final VoidCallback _listener;
 
@@ -23,14 +24,14 @@ class LibraryCubit extends Cubit<LibraryState> {
     _libraryBox = Hive.box('LIBRARY');
     _favouritesManager = GetIt.I<FavouritesManager>();
     _downloadsManager = GetIt.I<DownloadManager>();
-    _historyBox = Hive.box('SONG_HISTORY');
+    _songHistory = GetIt.I<HistoryManager>().songs;
 
     _listener = _emitCurrentState;
 
     _libraryBox.listenable().addListener(_listener);
     _favouritesManager.listenable.addListener(_listener);
     _downloadsManager.downloadsNotifier.addListener(_listener);
-    _historyBox.listenable().addListener(_listener);
+    _songHistory.listenable.addListener(_listener);
   }
 
   void loadLibrary() {
@@ -46,7 +47,7 @@ class LibraryCubit extends Cubit<LibraryState> {
           playlists: libraryService.playlists,
           favourites: _favouritesManager.playlist,
           downloadsCount: downloadedCount,
-          historyCount: _historyBox.length,
+          historyCount: _songHistory.count,
         ),
       );
     } catch (e) {
@@ -59,7 +60,7 @@ class LibraryCubit extends Cubit<LibraryState> {
     _libraryBox.listenable().removeListener(_listener);
     _favouritesManager.listenable.removeListener(_listener);
     _downloadsManager.downloadsNotifier.removeListener(_listener);
-    _historyBox.listenable().removeListener(_listener);
+    _songHistory.listenable.removeListener(_listener);
     return super.close();
   }
 }

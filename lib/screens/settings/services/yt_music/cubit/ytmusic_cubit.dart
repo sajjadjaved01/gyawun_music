@@ -9,15 +9,13 @@ import '../../../../../../services/settings_manager.dart';
 part 'ytmusic_state.dart';
 
 class YTMusicCubit extends Cubit<YTMusicState> {
-  final SettingsManager _settingsManager = GetIt.I<SettingsManager>();
-  final YTMusic _ytmusic = GetIt.I<YTMusic>();
+  late final SettingsManager _settingsManager;
+  late final YTMusic _ytmusic;
+  late final VoidCallback _settingsListener;
 
   List<Map<String, String>> get locations => _settingsManager.locations;
   List<Map<String, String>> get languages => _settingsManager.languages;
-
   List<AudioQuality> get audioQualities => _settingsManager.audioQualities;
-
-  late final VoidCallback _settingsListener;
 
   YTMusicCubit()
     : super(
@@ -32,6 +30,8 @@ class YTMusicCubit extends Cubit<YTMusicState> {
           visitorId: GetIt.I<SettingsManager>().visitorId!,
         ),
       ) {
+    _settingsManager = GetIt.I<SettingsManager>();
+    _ytmusic = GetIt.I<YTMusic>();
     _settingsListener = _emit;
 
     _settingsManager.addListener(_settingsListener);

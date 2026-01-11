@@ -20,6 +20,7 @@ import 'generated/l10n.dart';
 import 'services/download_manager.dart';
 import 'services/favourites_manager.dart';
 import 'services/file_storage.dart';
+import 'services/history_manager.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
 import 'services/media_player.dart';
@@ -78,6 +79,9 @@ void main() async {
 
   DownloadManager downloadManager = await DownloadManager.create();
   GetIt.I.registerSingleton<DownloadManager>(downloadManager);
+
+  HistoryManager historyManager = await HistoryManager.create();
+  GetIt.I.registerSingleton<HistoryManager>(historyManager);
 
   GetIt.I.registerSingleton<Lyrics>(Lyrics());
 
@@ -163,8 +167,6 @@ Future<void> initialiseHive() async {
   }
   await Hive.initFlutter(applicationDataDirectoryPath);
   await Hive.openBox('LIBRARY');
-  await Hive.openBox('SEARCH_HISTORY');
-  await Hive.openBox('SONG_HISTORY');
 }
 
 Future<YTConfig?>? getYtConfig(SettingsManager settingsManager) async {
