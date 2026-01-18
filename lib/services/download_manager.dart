@@ -443,14 +443,35 @@ class DownloadManager {
     }
   }
 
+  Future<List> _getSongs({
+    String? playlistId,
+    int maxContinuations = 50, // playlist and albums with up to 24 * 51 songs
+  }) async {
+    final songs = [];
+    if (playlistId != null) {
+      Map result = await GetIt.I<YTMusic>().getNextSongList(
+        playlistId: playlistId,
+      );
+      songs.addAll(result['contents']);
+      String? continuation = result['continuation'];
+      while (maxContinuations > 0 && continuation != null) {
+        result = await GetIt.I<YTMusic>().getNextSongList(
+          continuation: continuation,
+        );
+        songs.addAll(result['contents']);
+        continuation = result['continuation'];
+        maxContinuations -= 1;
+      }
+    }
+    return songs;
+  }
+
   Future<void> downloadPlaylist(Map playlist) async {
     List songs = playlist['isPredefined'] == false
         ? playlist['songs']
-        : playlist['type'] == 'ARTIST'
-        ? await GetIt.I<YTMusic>().getNextSongList(
+        : await _getSongs(
             playlistId: playlist['playlistId'],
-          )
-        : await GetIt.I<YTMusic>().getPlaylistSongs(playlist['playlistId']);
+            maxContinuations: playlist['type'] == 'ARTIST' ? 0 : 50);
     int timestamp = DateTime.now().millisecondsSinceEpoch;
     for (Map song in songs) {
       downloadSong({
