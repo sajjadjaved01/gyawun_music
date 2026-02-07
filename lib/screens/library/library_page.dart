@@ -84,12 +84,13 @@ class _LibraryBody extends StatelessWidget {
   });
 
   final Map playlists;
-  final List favourites;
+  final Map favourites;
   final int downloadsCount;
   final int historyCount;
 
   @override
   Widget build(BuildContext context) {
+    final favSongs = favourites['songs'];
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [ExpressiveAppBar(title: "Library")];
@@ -115,19 +116,14 @@ class _LibraryBody extends StatelessWidget {
                             ).colorScheme.primaryContainer,
                             size: 30,
                           ),
-                          subtitle: Text(
-                            S.of(context).nSongs(favourites.length),
-                          ),
+                          subtitle: Text(S.of(context).nSongs(favSongs.length)),
                           trailing: Icon(FluentIcons.chevron_right_24_filled),
                           onTap: () => context.push('/library/favourites'),
                           onLongPress: () {
-                            Modals.showFavouritesBottomModal(context, {
-                              'title': "Favourites",
-                              'playlistId': 'FVRTS',
-                              'type': 'PLAYLIST',
-                              'isPredefined': false,
-                              'songs': favourites,
-                            });
+                            Modals.showFavouritesBottomModal(
+                              context,
+                              favourites,
+                            );
                           },
                         ),
                         ExpressiveListTile(

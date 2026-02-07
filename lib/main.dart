@@ -18,6 +18,7 @@ import 'package:yt_music/ytmusic.dart';
 
 import 'generated/l10n.dart';
 import 'services/download_manager.dart';
+import 'services/favourites_manager.dart';
 import 'services/file_storage.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
@@ -78,6 +79,9 @@ void main() async {
   GetIt.I.registerSingleton<LibraryService>(libraryService);
   GetIt.I.registerSingleton<Lyrics>(Lyrics());
 
+  FavouritesManager favouritesManager = await FavouritesManager.create();
+  GetIt.I.registerSingleton<FavouritesManager>(favouritesManager);
+
   runApp(
     MultiProvider(
       providers: [
@@ -123,11 +127,17 @@ class Gyawun extends StatelessWidget {
             theme: ColorScheme.fromSeed(
               seedColor: primaryColor,
             ).toM3EThemeData(base: AppTheme.light(primary: primaryColor)),
-            darkTheme: ColorScheme.fromSeed(
-              brightness: Brightness.dark,
-              surface: isPureBlack ? Colors.black : null,
-              seedColor: primaryColor,
-            ).toM3EThemeData(base: AppTheme.dark(primary: primaryColor,isPureBlack: isPureBlack)),
+            darkTheme:
+                ColorScheme.fromSeed(
+                  brightness: Brightness.dark,
+                  surface: isPureBlack ? Colors.black : null,
+                  seedColor: primaryColor,
+                ).toM3EThemeData(
+                  base: AppTheme.dark(
+                    primary: primaryColor,
+                    isPureBlack: isPureBlack,
+                  ),
+                ),
             // theme: AppTheme.light(
             //   primary: context.watch<SettingsManager>().dynamicColors &&
             //           lightScheme != null
@@ -159,7 +169,6 @@ Future<void> initialiseHive() async {
   await Hive.openBox('LIBRARY');
   await Hive.openBox('SEARCH_HISTORY');
   await Hive.openBox('SONG_HISTORY');
-  await Hive.openBox('FAVOURITES');
   await Hive.openBox('DOWNLOADS');
 }
 

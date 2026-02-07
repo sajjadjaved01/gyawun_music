@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../../../services/file_storage.dart';
 import '../../../../../../services/library.dart';
 import '../../../../../../services/settings_manager.dart';
+import '../../../../../../services/favourites_manager.dart';
 
 part 'backup_storage_state.dart';
 
@@ -16,14 +17,14 @@ class BackupStorageCubit extends Cubit<BackupStorageState> {
   late final VoidCallback _listener;
 
   BackupStorageCubit()
-      : super(
-          BackupStorageState(
-            appFolder: Hive.box('SETTINGS').get(
-              'APP_FOLDER',
-              defaultValue: GetIt.I<FileStorage>().storagePaths.basePath,
-            ),
+    : super(
+        BackupStorageState(
+          appFolder: Hive.box('SETTINGS').get(
+            'APP_FOLDER',
+            defaultValue: GetIt.I<FileStorage>().storagePaths.basePath,
           ),
-        ) {
+        ),
+      ) {
     _listener = _emit;
     _settingsBox.listenable(keys: ['APP_FOLDER']).addListener(_listener);
   }
@@ -55,10 +56,7 @@ class BackupStorageCubit extends Cubit<BackupStorageState> {
     );
   }
 
-  Future<void> backup({
-    required String action,
-    required List items,
-  }) async {
+  Future<void> backup({required String action, required List items}) async {
     final Map backup = {
       'name': 'Gyawun',
       'type': 'backup',
@@ -71,14 +69,16 @@ class BackupStorageCubit extends Cubit<BackupStorageState> {
     }
 
     if (items.contains('settings')) {
-      final settings =
-          Map<String, dynamic>.from(GetIt.I<SettingsManager>().settings);
+      final settings = Map<String, dynamic>.from(
+        GetIt.I<SettingsManager>().settings,
+      );
       settings.remove('YTMUSIC_AUTH');
       backup['data']['settings'] = settings;
     }
 
     if (items.contains('favourites')) {
-      backup['data']['favourites'] = Hive.box('FAVOURITES').toMap();
+      Map favourites = GetIt.I<FavouritesManager>().songs;
+      backup['data']['favourites'] = favourites;
     }
 
     if (items.contains('song history')) {
@@ -98,8 +98,9 @@ class BackupStorageCubit extends Cubit<BackupStorageState> {
 
     emit(
       state.copyWith(
-        lastResult:
-            (path.isEmpty) ? const BackupFailure() : BackupSuccess(path),
+        lastResult: (path.isEmpty)
+            ? const BackupFailure()
+            : BackupSuccess(path),
       ),
     );
   }

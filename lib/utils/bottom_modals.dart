@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import '../generated/l10n.dart';
 import '../services/bottom_message.dart';
 import '../services/download_manager.dart';
+import '../services/favourites_manager.dart';
 import '../services/library.dart';
 import '../services/media_player.dart';
 import '../services/settings_manager.dart';
@@ -993,30 +994,23 @@ BottomModalLayout _songBottomModal(BuildContext context, Map song) {
               await GetIt.I<MediaPlayer>().addToQueue(Map.from(song));
             },
           ),
-          ValueListenableBuilder(
-            valueListenable: Hive.box('FAVOURITES').listenable(),
-            builder: (context, value, child) {
-              Map? item = value.get(song['videoId']);
+          ListenableBuilder(
+            listenable: GetIt.I<FavouritesManager>().listenable,
+            builder: (context, child) {
+              bool isFavorite = GetIt.I<FavouritesManager>().isFavourite(song);
               return AdaptiveListTile(
                 dense: true,
                 title: Text(
-                  item == null
+                  !isFavorite
                       ? S.of(context).Add_To_Favourites
                       : S.of(context).Remove_From_Favourites,
                 ),
                 leading: Icon(
-                  item == null ? AdaptiveIcons.heart : AdaptiveIcons.heart_fill,
+                  !isFavorite ? AdaptiveIcons.heart : AdaptiveIcons.heart_fill,
                 ),
                 onTap: () async {
                   Navigator.pop(context);
-                  if (item == null) {
-                    await Hive.box('FAVOURITES').put(song['videoId'], {
-                      ...song,
-                      'createdAt': DateTime.now().millisecondsSinceEpoch,
-                    });
-                  } else {
-                    await value.delete(song['videoId']);
-                  }
+                  GetIt.I<FavouritesManager>().addOrRemove(song);
                 },
               );
             },

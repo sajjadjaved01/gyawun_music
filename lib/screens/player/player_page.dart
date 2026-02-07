@@ -18,6 +18,7 @@ import 'package:yt_music/ytmusic.dart';
 
 import '../../generated/l10n.dart';
 import '../../services/download_manager.dart';
+import '../../services/favourites_manager.dart';
 import '../../services/media_player.dart';
 import '../../themes/colors.dart';
 import '../../themes/dark.dart';
@@ -506,29 +507,22 @@ class NameAndControls extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    ValueListenableBuilder(
-                      valueListenable: Hive.box('FAVOURITES').listenable(),
-                      builder: (context, value, child) {
-                        Map? item = value.get(song?.extras?['videoId']);
+                    ListenableBuilder(
+                      listenable: GetIt.I<FavouritesManager>().listenable,
+                      builder: (context, child) {
                         return AdaptiveIconButton(
                           icon: Icon(
-                            item == null
-                                ? AdaptiveIcons.heart
-                                : AdaptiveIcons.heart_fill,
+                            GetIt.I<FavouritesManager>().isFavourite(
+                                  song?.extras,
+                                )
+                                ? AdaptiveIcons.heart_fill
+                                : AdaptiveIcons.heart,
                             size: 30,
                           ),
                           onPressed: () async {
-                            if (item == null) {
-                              await Hive.box(
-                                'FAVOURITES',
-                              ).put(song!.extras!['videoId'], {
-                                ...song!.extras!,
-                                'createdAt':
-                                    DateTime.now().millisecondsSinceEpoch,
-                              });
-                            } else {
-                              await value.delete(song!.extras!['videoId']);
-                            }
+                            GetIt.I<FavouritesManager>().addOrRemove(
+                              song?.extras,
+                            );
                           },
                         );
                       },

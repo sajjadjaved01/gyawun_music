@@ -11,7 +11,7 @@ class LibraryLoading extends LibraryState {
 
 class LibraryLoaded extends LibraryState {
   final Map playlists;
-  final List favourites;
+  final Map favourites;
   final int downloadsCount;
   final int historyCount;
 

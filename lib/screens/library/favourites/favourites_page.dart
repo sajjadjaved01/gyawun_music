@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +7,7 @@ import 'package:gyawun/core/widgets/expressive_app_bar.dart';
 import 'package:gyawun/core/widgets/song_tile.dart';
 import 'package:gyawun/services/media_player.dart';
 import 'package:gyawun/themes/text_styles.dart';
+import 'package:yt_music/mixins/browsing.dart';
 
 import '../../../../generated/l10n.dart';
 import '../../../../utils/bottom_modals.dart';
@@ -30,7 +29,9 @@ class FavouritesPage extends StatelessWidget {
                 child: AdaptiveProgressRing(),
               ),
               FavouritesError(:final message) => Center(child: Text(message)),
-              FavouritesLoaded(:final songs) => _FavouritesBody(songs: songs),
+              FavouritesLoaded(favourites: final playlist) => _FavouritesBody(
+                playlist: playlist,
+              ),
             };
           },
         ),
@@ -40,12 +41,13 @@ class FavouritesPage extends StatelessWidget {
 }
 
 class _FavouritesBody extends StatelessWidget {
-  const _FavouritesBody({required this.songs});
+  const _FavouritesBody({required this.playlist});
 
-  final List songs;
+  final Map playlist;
 
   @override
   Widget build(BuildContext context) {
+    final songs = playlist['songs'];
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [
@@ -101,7 +103,6 @@ class _FavouritesBody extends StatelessWidget {
                     ),
                     onPressed: () {
                       if (songs.isEmpty) return;
-
                       GetIt.I<MediaPlayer>().playAll(songs);
                     },
                     icon: const Icon(FluentIcons.play_24_filled),
@@ -139,13 +140,7 @@ class _FavouritesBody extends StatelessWidget {
                   IconButton.filled(
                     enableFeedback: true,
                     onPressed: () {
-                      Modals.showFavouritesBottomModal(context, {
-                        'title': "Favourites",
-                        'playlistId': 'FVRTS',
-                        'type': 'PLAYLIST',
-                        'isPredefined': false,
-                        'songs': songs,
-                      });
+                      Modals.showFavouritesBottomModal(context, playlist);
                     },
                     icon: Icon(Icons.more_vert),
                   ),
@@ -176,9 +171,7 @@ class _FavouritesBody extends StatelessWidget {
                           );
 
                           if (confirm && context.mounted) {
-                            await context.read<FavouritesCubit>().remove(
-                              song['id'] ?? song['videoId'],
-                            );
+                            await context.read<FavouritesCubit>().remove(song);
                           }
                         },
                       ),
