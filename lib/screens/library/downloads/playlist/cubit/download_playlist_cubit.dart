@@ -14,7 +14,7 @@ class DownloadPlaylistCubit extends Cubit<DownloadPlaylistState> {
   late final VoidCallback _listener;
 
   DownloadPlaylistCubit(this.playlistId)
-      : super(const DownloadPlaylistLoading()) {
+    : super(const DownloadPlaylistLoading()) {
     _listener = () {
       if (!isClosed) {
         _emitState();
@@ -43,7 +43,14 @@ class DownloadPlaylistCubit extends Cubit<DownloadPlaylistState> {
     emit(
       DownloadPlaylistLoaded(
         playlist: playlist,
-        songs: List.from(playlist['songs']),
+        songs: List.from(
+          playlist['songs'].map(
+            (Map song) => {...song}
+              ..remove("playlists")
+              ..remove("status")
+              ..remove("path"),
+          ),
+        ),
       ),
     );
   }
