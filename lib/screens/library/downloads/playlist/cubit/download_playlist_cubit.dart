@@ -76,11 +76,7 @@ class DownloadPlaylistCubit extends Cubit<DownloadPlaylistState> {
   }
 
   Future<void> removeSong(Map song) async {
-    await _manager.deleteSong(
-      key: song['videoId'],
-      path: song['path'],
-      playlistId: playlistId,
-    );
+    await _manager.deleteSong(key: song['videoId'], playlistId: playlistId);
   }
 
   @override

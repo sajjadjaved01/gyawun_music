@@ -18,6 +18,8 @@ import 'stream_client.dart';
 Box _box = Hive.box('DOWNLOADS');
 YoutubeExplode ytExplode = YoutubeExplode();
 
+class DownloadCanceledException implements Exception {}
+
 class DownloadManager {
   Client client = Client();
   ValueNotifier<List<Map>> downloads = ValueNotifier([]);
@@ -223,7 +225,10 @@ class DownloadManager {
     // Check downloaded songs
     final Map? downloadSong = _box.get(song['videoId']);
     if (downloadSong != null) {
-      if (_activeDownloads.contains(song['videoId'])) {
+      final queueSong = _downloadQueue.firstWhereOrNull(
+        (item) => item['videoId'] == song['videoId'],
+      );
+      if (_activeDownloads.contains(song['videoId']) || queueSong != null) {
         // Already downloading, just update metadata
         await _updateSongMetadata(song['videoId'], {...song});
         _downloadNext();
@@ -269,6 +274,8 @@ class DownloadManager {
         quality: GetIt.I<SettingsManager>().downloadQuality.name.toLowerCase(),
       );
 
+      _ensureActive(song);
+
       int total = audioSource.size.totalBytes;
       BytesBuilder received = BytesBuilder();
 
@@ -278,14 +285,22 @@ class DownloadManager {
         end: total,
       );
 
+      _ensureActive(song);
+
       await for (var data in stream) {
+        _ensureActive(song);
+
         received.add(data);
         _updateTrackingProgress(song['videoId'], received.length / total);
       }
+
       File? file = await GetIt.I<FileStorage>().saveMusic(
         received.takeBytes(),
         song,
       );
+
+      _ensureActive(song);
+
       if (file != null) {
         await _updateSongMetadata(song['videoId'], {
           'status': 'DOWNLOADED',
@@ -294,6 +309,8 @@ class DownloadManager {
       } else {
         throw Exception("File saving failed");
       }
+    } on DownloadCanceledException {
+      debugPrint("Download cancelled by user: ${song['videoId']}");
     } catch (e) {
       debugPrint("Error in _downloadSong: $e");
       await _updateSongMetadata(song['videoId'], {'status': 'DELETED'});
@@ -334,6 +351,12 @@ class DownloadManager {
     return true;
   }
 
+  void _ensureActive(Map song) {
+    if (!_activeDownloads.contains(song['videoId'])) {
+      throw DownloadCanceledException();
+    }
+  }
+
   void _downloadEnd(Map song) {
     if (_activeDownloads.isNotEmpty) {
       _activeDownloads.remove(song['videoId']);
@@ -347,24 +370,46 @@ class DownloadManager {
     }
   }
 
+  Future<void> _deleteSongInstance(Map song) async {
+    // Remove Song from Queue
+    if (song['status'] == "QUEUED") {
+      _downloadQueue.removeWhere((item) => item['videoId'] == song['videoId']);
+    }
+    // Stop in-progress download
+    else if (song['status'] == "DOWNLOADING") {
+      _downloadEnd(song);
+    }
+    // Delete Song from box
+    await _box.delete(song['videoId']);
+    // Remove file if exists
+    if (song['path'] != null && await File(song['path']).exists()) {
+      await File(song['path']).delete();
+    }
+  }
+
   Future<String> deleteSong({
     required String key,
     String playlistId = songsPlaylistId,
-    String? path,
   }) async {
     Map? song = _box.get(key);
-    if (song != null && song['playlists'].keys.contains(playlistId)) {
-      song['playlists'].remove(playlistId);
-      if (song['playlists'].isNotEmpty) {
-        await _box.put(key, song);
+    final Map playlists = song?['playlists'];
+    if (song != null && (playlists.keys.contains(playlistId))) {
+      if (playlists.length == 1) {
+        await _deleteSongInstance(song);
       } else {
-        await _box.delete(key);
-        if (path != null && await File(path).exists()) {
-          await File(path).delete();
-        }
+        // Remove playlist from Song Instance
+        song['playlists'].remove(playlistId);
+        await _box.put(key, song);
       }
     }
     return 'Song deleted successfully.';
+  }
+
+  Future<void> deleteAllSongs() async {
+    List<Map> songs = _box.values.toList().cast<Map>();
+    for (Map song in songs) {
+      _deleteSongInstance(song);
+    }
   }
 
   Future<void> updateStatus(String key, String status) async {
