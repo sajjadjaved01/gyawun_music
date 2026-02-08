@@ -1217,36 +1217,28 @@ BottomModalLayout _playlistBottomModal(BuildContext context, Map playlist) {
                   ? AdaptiveIcons.library_add
                   : AdaptiveIcons.library_add_check,
             ),
-            onTap: () {
-              Navigator.pop(context);
+            onTap: () async {
               if (context.read<LibraryService>().getPlaylist(
                     playlist['playlistId'],
                   ) ==
                   null) {
-                GetIt.I<LibraryService>()
-                    .addToOrRemoveFromLibrary(playlist)
-                    .then((String message) {
-                      if (context.mounted) {
-                        BottomMessage.showText(context, message);
-                      }
-                    });
+                final String message = await GetIt.I<LibraryService>()
+                    .addToOrRemoveFromLibrary(playlist);
+                if (!context.mounted) return;
+                BottomMessage.showText(context, message);
               } else {
-                Modals.showConfirmBottomModal(
+                final bool confirm = await Modals.showConfirmBottomModal(
                   context,
                   message: S.of(context).Delete_Item_Message,
                   isDanger: true,
-                ).then((bool confirm) {
-                  if (confirm) {
-                    GetIt.I<LibraryService>()
-                        .addToOrRemoveFromLibrary(playlist)
-                        .then((String message) {
-                          if (context.mounted) {
-                            BottomMessage.showText(context, message);
-                          }
-                        });
-                  }
-                });
+                );
+                if (confirm != true) return;
+                final String message = await GetIt.I<LibraryService>()
+                    .addToOrRemoveFromLibrary(playlist);
+                if (!context.mounted) return;
+                BottomMessage.showText(context, message);
               }
+              Navigator.pop(context);
             },
           ),
           if (playlist['playlistId'] != null && playlist['type'] == 'ARTIST')
