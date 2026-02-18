@@ -80,10 +80,11 @@ class _BrowsePageState extends State<_BrowsePage> {
               return Center(child: Text(state.message ?? ''));
             case BrowseSuccess():
               final isAddedToLibrary =
+                  (state.header.containsKey('playlistId') &&
                   context.watch<LibraryService>().getPlaylist(
-                    state.header['playlistId'],
-                  ) !=
-                  null;
+                        state.header['playlistId'],
+                      ) !=
+                      null);
               return Scaffold(
                 appBar: AppBar(
                   title: state.header['title'] != null
@@ -92,13 +93,13 @@ class _BrowsePageState extends State<_BrowsePage> {
                   actionsPadding: .only(right: 8),
                   actions: [
                     if (state.header['privacy'] != 'PRIVATE' &&
+                        state.header.containsKey('playlistId') &&
                         state.header['playlistId'] != 'LM')
                       IconButton(
                         icon: Icon(
                           isAddedToLibrary
                               ? Icons.bookmark_added
                               : Icons.bookmark_add_outlined,
-                          
                         ),
                         onPressed: () {
                           context
@@ -297,7 +298,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
                   FilledButton(
                     style: const ButtonStyle(
                       padding: WidgetStatePropertyAll(
-                          .symmetric(horizontal: 8, vertical: 16),
+                        .symmetric(horizontal: 8, vertical: 16),
                       ),
                       shape: WidgetStatePropertyAll(
                         RoundedRectangleBorder(
@@ -310,7 +311,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
                         ),
                       ),
                     ),
-                    child: const Icon(Icons.more_vert,size: 20,),
+                    child: const Icon(Icons.more_vert, size: 20),
                     onPressed: () {
                       Modals.showPlaylistBottomModal(context, header);
                     },
