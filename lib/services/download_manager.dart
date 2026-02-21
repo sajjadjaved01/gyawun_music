@@ -42,8 +42,8 @@ class DownloadManager {
   }
 
   DownloadManager._(this._box) {
+    _cleanAndMigrateData();
     _refreshData();
-    _cleanupDownloads();
     _box.listenable().addListener(() {
       _refreshData();
     });
@@ -56,34 +56,27 @@ class DownloadManager {
     return instance;
   }
 
-  void _cleanupDownloads() async {
+  Future<void> _cleanAndMigrateData() async {
     final activeIds = _activeDownloads.toSet();
     final queuedIds = _downloadQueue.map((e) => e['videoId']).toSet();
-    for (Map song in downloadsNotifier.value) {
-      final id = song['videoId'];
-      final status = song['status'];
+    final mapToUpdate = <String, Map>{};
+
+    for (final key in _box.keys) {
+      final Map song = Map.from(_box.get(key) as Map);
+      final id = song['videoId'] ?? key.toString();
+      String status = song['status'] ?? '';
+
+      // 1) CHECK INTERRUPTED DOWNLOADS
       final isInvalidDownloading =
           status == 'DOWNLOADING' && !activeIds.contains(id);
       final isInvalidQueued = status == 'QUEUED' && !queuedIds.contains(id);
       if (isInvalidDownloading || isInvalidQueued) {
         debugPrint("Cleaning up interrupted download: ${song['title']}");
-        await _updateSongMetadata(id, {'status': 'DELETED'});
+        song['status'] = 'DELETED';
+        mapToUpdate[key.toString()] = song;
       }
-    }
-  }
 
-  Future<void> _refreshData() async {
-    // -----------------------------
-    // 0) LOAD DOWNLOADS FROM HIVE
-    // -----------------------------
-    downloadsNotifier.value = _box.values.toList().cast<Map>();
-
-    // -----------------------------
-    // 1) MIGRATE OLD DOWNLOADS → SONGS
-    // -----------------------------
-    bool needsSave = false;
-
-    for (final song in downloadsNotifier.value) {
+      // 2) MIGRATE OLD DOWNLOADS TO SONGS PLAYLIST
       if (song["playlists"] == null || song["playlists"] is! Map) {
         song["playlists"] = {
           songsPlaylistId: {
@@ -95,36 +88,20 @@ class DownloadManager {
                 DateTime.now().millisecondsSinceEpoch,
           },
         };
-        needsSave = true;
+        mapToUpdate[key.toString()] = song;
       }
     }
-
-    if (needsSave) {
-      await _box.clear();
-      await _box.addAll(downloadsNotifier.value);
+    // 1) UPDATE DOWNLOADS
+    if (mapToUpdate.isNotEmpty) {
+      await _box.putAll(mapToUpdate);
     }
+  }
 
-    // -----------------------------
-    // 2) PURGE DELETED DOWNLOADS
-    // -----------------------------
-    bool removedDeleted = false;
+  Future<void> _refreshData() async {
+    // 1) LOAD DOWNLOADS FROM HIVE
+    downloadsNotifier.value = _box.values.toList().cast<Map>();
 
-    downloadsNotifier.value.removeWhere((song) {
-      if (song["status"] == "DELETED") {
-        removedDeleted = true;
-        return true;
-      }
-      return false;
-    });
-
-    if (removedDeleted) {
-      await _box.clear();
-      await _box.addAll(downloadsNotifier.value);
-    }
-
-    // -----------------------------
-    // 3) BUILD PLAYLIST MAP
-    // -----------------------------
+    // 2) BUILD PLAYLIST MAP
     final Map<String, Map<String, dynamic>> playlists = {};
 
     for (final song in downloadsNotifier.value) {
@@ -161,9 +138,7 @@ class DownloadManager {
       }
     }
 
-    // -----------------------------
-    // 4) SORT SONGS INSIDE PLAYLISTS
-    // -----------------------------
+    // 3) SORT SONGS INSIDE PLAYLISTS
     for (final playlist in playlists.values) {
       final String playlistId = playlist["id"];
 
@@ -174,9 +149,7 @@ class DownloadManager {
       });
     }
 
-    // -----------------------------
-    // 5) UPDATE STATE IF CHANGED
-    // -----------------------------
+    // 4) UPDATE STATE IF CHANGED
     if (!const DeepCollectionEquality().equals(
       playlistsNotifier.value,
       playlists,
@@ -471,7 +444,8 @@ class DownloadManager {
         ? playlist['songs']
         : await _getSongs(
             playlistId: playlist['playlistId'],
-            maxContinuations: playlist['type'] == 'ARTIST' ? 0 : 50);
+            maxContinuations: playlist['type'] == 'ARTIST' ? 0 : 50,
+          );
     int timestamp = DateTime.now().millisecondsSinceEpoch;
     for (Map song in songs) {
       downloadSong({
