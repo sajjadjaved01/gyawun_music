@@ -184,7 +184,11 @@ class _PlaylistView extends StatelessWidget {
                           },
                         ),
                       ],
-                      child: SongTile(song: song),
+                      child: SongTile(
+                        song: song,
+                        isFirst: index == 0,
+                        isLast: index == playlist['songs'].length - 1,
+                      ),
                     ),
                   );
                 }, childCount: playlist['songs'].length),

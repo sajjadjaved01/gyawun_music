@@ -296,6 +296,8 @@ class _PlaylistView extends StatelessWidget {
                           onLongPress: config?.onLongPress,
                           icon: config?.icon,
                           onIconPress: config?.onIconPress,
+                          isFirst: index == 0,
+                          isLast: index == songs.length - 1,
                         ),
                       ),
                     );

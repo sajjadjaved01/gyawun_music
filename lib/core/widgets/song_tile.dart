@@ -16,6 +16,8 @@ class SongTile extends StatelessWidget {
     this.onLongPress,
     this.icon,
     this.onIconPress,
+    this.isFirst = true,
+    this.isLast = true,
     super.key,
   });
   final Map song;
@@ -24,6 +26,8 @@ class SongTile extends StatelessWidget {
   final Function? onLongPress;
   final IconData? icon;
   final Function? onIconPress;
+  final bool isFirst;
+  final bool isLast;
 
   void _onTap(BuildContext context, Map song) async {
     if (song['endpoint'] != null && song['videoId'] == null) {
@@ -47,7 +51,6 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List thumbnails = song['thumbnails'];
     double height =
         (song['aspectRatio'] != null ? 50 / song['aspectRatio'] : 50)
             .toDouble();
@@ -103,6 +106,8 @@ class SongTile extends StatelessWidget {
               onPressed: () => (onIconPress ?? _onIconPress)(context, song),
               icon: Icon(icon ?? FluentIcons.more_vertical_24_filled),
             ),
+      isFirst: isFirst,
+      isLast: isLast,
     );
   }
 }
