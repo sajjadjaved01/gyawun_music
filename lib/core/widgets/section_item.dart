@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gyawun/core/widgets/sections/section_multi_column.dart';
 import 'package:gyawun/core/widgets/sections/section_row.dart';
-import 'package:gyawun/core/widgets/tiles/section_list_tile.dart';
+import 'package:gyawun/core/widgets/song_tile.dart';
 import 'package:yt_music/ytmusic.dart';
 
 import '../../generated/l10n.dart';
@@ -163,8 +163,8 @@ class SingleColumnList extends StatelessWidget {
       itemBuilder: (context, index) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 4),
-          child: SectionListTile(
-            item: songs[index],
+          child: SongTile(
+            song: songs[index],
             isFirst: index == 0,
             isLast: index == (songs.length - 1),
           ),
