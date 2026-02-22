@@ -1,6 +1,5 @@
 import 'dart:ui';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,6 +10,7 @@ import 'package:gyawun/services/media_player.dart';
 import 'package:gyawun/themes/text_styles.dart';
 import '../../../../../generated/l10n.dart';
 import '../../../../../utils/bottom_modals.dart';
+import '../../../../services/bottom_message.dart';
 import '../../../../services/download_manager.dart';
 import '../../../../services/favourites_manager.dart';
 import '../../../../utils/adaptive_widgets/appbar.dart';
@@ -50,7 +50,7 @@ class DownloadPlaylistPage extends StatelessWidget {
 }
 
 class _PlaylistView extends StatelessWidget {
-  const _PlaylistView({
+  _PlaylistView({
     required this.playlist,
     required this.songs,
     required this.playlistId,
@@ -60,8 +60,50 @@ class _PlaylistView extends StatelessWidget {
   final List songs;
   final String playlistId;
 
+  final Map<String, _SongStatusConfig> statusMap = {
+    "DELETED": _SongStatusConfig(
+      onTap: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).File_Not_Found);
+      },
+      onLongPress: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).File_Not_Found);
+      },
+      icon: FluentIcons.arrow_circle_down_24_regular,
+      onIconPress: (ctx, song) {
+        ctx.read<DownloadPlaylistCubit>().restoreDownloads([song]);
+      },
+    ),
+    "QUEUED": _SongStatusConfig(
+      onTap: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).Queued);
+      },
+      onLongPress: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).Queued);
+      },
+      icon: FluentIcons.clock_24_regular,
+      onIconPress: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).Queued);
+      },
+    ),
+    "DOWNLOADING": _SongStatusConfig(
+      onTap: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).Downloading);
+      },
+      onLongPress: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).Downloading);
+      },
+      icon: FluentIcons.arrow_sync_circle_24_regular,
+      onIconPress: (ctx, _) {
+        BottomMessage.showText(ctx, S.of(ctx).Downloading);
+      },
+    ),
+  };
+
   @override
   Widget build(BuildContext context) {
+    final downloadedSongs = context
+        .read<DownloadPlaylistCubit>()
+        .getDownloadedSongs(playlistId);
     return Scaffold(
       body: Center(
         child: Container(
@@ -123,30 +165,6 @@ class _PlaylistView extends StatelessWidget {
                             ),
                           ],
                         ),
-                        background: playlist['thumbnails'] != null
-                            ? Container(
-                                height: 120,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  image: DecorationImage(
-                                    image: CachedNetworkImageProvider(
-                                      playlist['songs']?[1]?['thumbnails']?[1]?['url'],
-                                    ),
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                foregroundDecoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: .topCenter,
-                                    end: .bottomCenter,
-                                    colors: [
-                                      Colors.transparent,
-                                      Theme.of(context).colorScheme.surface,
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : null,
                       );
                     },
                   ),
@@ -178,12 +196,18 @@ class _PlaylistView extends StatelessWidget {
                             ),
                           ),
                           onPressed: () {
-                            if (songs.isEmpty) return;
-
-                            GetIt.I<MediaPlayer>().playAll(songs);
+                            if (downloadedSongs == null ||
+                                downloadedSongs.isEmpty) {
+                              BottomMessage.showText(
+                                context,
+                                S.of(context).No_Offline_Songs,
+                              );
+                            } else {
+                              GetIt.I<MediaPlayer>().playAll(downloadedSongs);
+                            }
                           },
                           icon: const Icon(FluentIcons.play_24_filled),
-                          label: const Text('Play it'),
+                          label: Text(S.of(context).Play_All),
                         ),
                         SizedBox(width: 4),
                         FilledButton.tonalIcon(
@@ -204,14 +228,20 @@ class _PlaylistView extends StatelessWidget {
                           ),
 
                           onPressed: () {
-                            if (songs.isEmpty) return;
-                            final shuffled = List.from(songs);
-                            shuffled.shuffle();
-
-                            GetIt.I<MediaPlayer>().playAll(shuffled);
+                            if (downloadedSongs == null ||
+                                downloadedSongs.isEmpty) {
+                              BottomMessage.showText(
+                                context,
+                                S.of(context).No_Offline_Songs,
+                              );
+                            } else {
+                              final shuffled = List.from(downloadedSongs);
+                              shuffled.shuffle();
+                              GetIt.I<MediaPlayer>().playAll(shuffled);
+                            }
                           },
                           icon: const Icon(FluentIcons.arrow_shuffle_24_filled),
-                          label: const Text('Shuffle'),
+                          label: Text(S.of(context).Shuffle),
                         ),
                         SizedBox(width: 8),
                         IconButton.filled(
@@ -231,7 +261,7 @@ class _PlaylistView extends StatelessWidget {
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final song = songs[index];
-
+                    final config = statusMap[song['status']];
                     return Padding(
                       padding: const .symmetric(horizontal: 8, vertical: 4),
                       child: SwipeActionCell(
@@ -258,7 +288,15 @@ class _PlaylistView extends StatelessWidget {
                             },
                           ),
                         ],
-                        child: SongTile(song: song),
+                        child: SongTile(
+                          song: context
+                              .read<DownloadPlaylistCubit>()
+                              .getCleanSong(song),
+                          onTap: config?.onTap,
+                          onLongPress: config?.onLongPress,
+                          icon: config?.icon,
+                          onIconPress: config?.onIconPress,
+                        ),
                       ),
                     );
                   }, childCount: songs.length),
@@ -271,4 +309,18 @@ class _PlaylistView extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SongStatusConfig {
+  final void Function(BuildContext, Map)? onTap;
+  final void Function(BuildContext, Map)? onLongPress;
+  final IconData icon;
+  final void Function(BuildContext, Map)? onIconPress;
+
+  const _SongStatusConfig({
+    required this.onTap,
+    required this.onLongPress,
+    required this.icon,
+    this.onIconPress,
+  });
 }

@@ -167,6 +167,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "No_Internet_Connection": MessageLookupByLibrary.simpleMessage(
       "Nessuna Connessione Internet",
     ),
+    "No_Offline_Songs": MessageLookupByLibrary.simpleMessage(
+      "Nessun brano scaricato",
+    ),
     "Organisation": MessageLookupByLibrary.simpleMessage("Organizzazione"),
     "Pay_With_UPI": MessageLookupByLibrary.simpleMessage("Paga con UPI"),
     "Payment_Methods": MessageLookupByLibrary.simpleMessage(

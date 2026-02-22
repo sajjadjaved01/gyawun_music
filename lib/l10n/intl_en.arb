@@ -275,5 +275,7 @@
   "Rotate_Device": "Rotate your device to type.",
   "@Rotate_Device": {},
   "View_Equalizer": "Play a song to see the equalizer.",
-  "@View_Equalizer": {}
+  "@View_Equalizer": {},
+  "No_Offline_Songs": "No offline songs available",
+  "@No_Offline_Songs": {}
 }

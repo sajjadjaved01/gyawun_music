@@ -41,6 +41,27 @@ class DownloadManager {
     return _box.get(songId);
   }
 
+  Map getCleanSong(Map song) {
+    final Map clean = Map.from(song);
+    clean.remove('status');
+    clean.remove('path');
+    clean.remove('playlists');
+    return clean;
+  }
+
+  List? getDownloadedSongs(String? playlistId) {
+    List? allSongs;
+    if (playlistId == null) {
+      allSongs = downloadsNotifier.value;
+    } else {
+      allSongs = playlistsNotifier.value[playlistId]?["songs"];
+    }
+    return allSongs
+        ?.where((s) => getDownload(s['videoId'])?['status'] == 'DOWNLOADED')
+        .map((s) => getCleanSong(s))
+        .toList();
+  }
+
   DownloadManager._(this._box) {
     _cleanAndMigrateData();
     _refreshData();
@@ -185,15 +206,16 @@ class DownloadManager {
   Future<void> restoreDownloads({List? songs}) async {
     final songsToRestore = songs ?? downloadsNotifier.value;
     for (var song in songsToRestore) {
-      if (_box.get(song['videoId']) != null) {
-        final status = song['status'];
-        final path = song['path'];
+      final storedSong = _box.get(song['videoId']);
+      if (storedSong != null) {
+        final status = storedSong['status'];
+        final path = storedSong['path'];
         final isFileMissing =
             status == 'DOWNLOADED' &&
             (path == null || !(await File(path).exists()));
         final isDeleted = status == 'DELETED';
         if (isDeleted || isFileMissing) {
-          downloadSong(song);
+          downloadSong(storedSong);
         }
       }
     }

@@ -1076,17 +1076,16 @@ BottomModalLayout _songBottomModal(BuildContext context, Map song) {
               );
             },
           ),
-          if (!['DOWNLOADING', 'DOWNLOADED'].contains(song['status']))
-            AdaptiveListTile(
-              dense: true,
-              title: Text(S.of(context).Download),
-              leading: Icon(AdaptiveIcons.download),
-              onTap: () {
-                Navigator.pop(context);
-                BottomMessage.showText(context, S.of(context).Download_Started);
-                GetIt.I<DownloadManager>().downloadSong(song);
-              },
-            ),
+          AdaptiveListTile(
+            dense: true,
+            title: Text(S.of(context).Download),
+            leading: Icon(AdaptiveIcons.download),
+            onTap: () {
+              Navigator.pop(context);
+              BottomMessage.showText(context, S.of(context).Download_Started);
+              GetIt.I<DownloadManager>().downloadSong(song);
+            },
+          ),
           AdaptiveListTile(
             dense: true,
             title: Text(S.of(context).Add_To_Playlist),
@@ -1525,7 +1524,13 @@ BottomModalLayout _downloadDetailsBottomModal(
             leading: Icon(AdaptiveIcons.playlist_play),
             onTap: () async {
               Navigator.pop(context);
-              await GetIt.I<MediaPlayer>().playNext(Map.from(playlist));
+              final plst = {
+                ...playlist,
+                'songs': GetIt.I<DownloadManager>().getDownloadedSongs(
+                  playlist['id'],
+                ),
+              };
+              await GetIt.I<MediaPlayer>().playNext(Map.from(plst));
             },
           ),
           AdaptiveListTile(
@@ -1534,7 +1539,13 @@ BottomModalLayout _downloadDetailsBottomModal(
             leading: Icon(AdaptiveIcons.queue_add),
             onTap: () async {
               Navigator.pop(context);
-              await GetIt.I<MediaPlayer>().addToQueue(Map.from(playlist));
+              final plst = {
+                ...playlist,
+                'songs': GetIt.I<DownloadManager>().getDownloadedSongs(
+                  playlist['id'],
+                ),
+              };
+              await GetIt.I<MediaPlayer>().addToQueue(Map.from(plst));
             },
           ),
           AdaptiveListTile(

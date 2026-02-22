@@ -275,5 +275,7 @@
   "Rotate_Device": "Ruota il dispositivo per scrivere.",
   "@Rotate_Device": {},
   "View_Equalizer": "Riproduci un brano per vedere l'equalizzatore.",
-  "@View_Equalizer": {}
+  "@View_Equalizer": {},
+  "No_Offline_Songs": "Nessun brano scaricato",
+  "@No_Offline_Songs": {}
 }

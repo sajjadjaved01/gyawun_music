@@ -59,8 +59,9 @@ class _SongThumbnailState extends State<SongThumbnail> {
   Future<void> _checkLocalThumbnail() async {
     if (!_isCheckingLocal) setState(() => _isCheckingLocal = true);
     MemoryImage? foundImage;
-    final downloadSong =
-        GetIt.I<DownloadManager>().downloads[widget.song['videoId']];
+    final downloadSong = GetIt.I<DownloadManager>().getDownload(
+      widget.song['videoId'],
+    );
     if (downloadSong != null &&
         downloadSong['status'] == "DOWNLOADED" &&
         downloadSong['path'] != null) {

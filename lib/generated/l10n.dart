@@ -1101,6 +1101,16 @@ class S {
       args: [],
     );
   }
+
+  /// `No offline songs available`
+  String get No_Offline_Songs {
+    return Intl.message(
+      'No offline songs available',
+      name: 'No_Offline_Songs',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

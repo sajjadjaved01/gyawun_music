@@ -25,8 +25,8 @@ class DownloadPlaylistCubit extends Cubit<DownloadPlaylistState> {
   }
 
   void load() {
-    _emitState();
     _verifyPlaylistIntegrity();
+    _emitState();
   }
 
   void _emitState() {
@@ -43,14 +43,7 @@ class DownloadPlaylistCubit extends Cubit<DownloadPlaylistState> {
     emit(
       DownloadPlaylistLoaded(
         playlist: playlist,
-        songs: List.from(
-          playlist['songs'].map(
-            (Map song) => {...song}
-              ..remove("playlists")
-              ..remove("status")
-              ..remove("path"),
-          ),
-        ),
+        songs: List.from(playlist['songs']),
       ),
     );
   }
@@ -77,6 +70,18 @@ class DownloadPlaylistCubit extends Cubit<DownloadPlaylistState> {
 
   Future<void> removeSong(Map song) async {
     await _manager.deleteSong(key: song['videoId'], playlistId: playlistId);
+  }
+
+  Map getCleanSong(Map song) {
+    return _manager.getCleanSong(song);
+  }
+
+  List? getDownloadedSongs(String? playlistId) {
+    return _manager.getDownloadedSongs(playlistId);
+  }
+
+  Future<void> restoreDownloads(List<Map> songs) async {
+    await _manager.restoreDownloads(songs: songs);
   }
 
   @override

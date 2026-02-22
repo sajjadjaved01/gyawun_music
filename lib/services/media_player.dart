@@ -320,22 +320,23 @@ class MediaPlayer extends ChangeNotifier {
     Object? session,
   }) async {
     Map songs = await GetIt.I<YTMusic>().getNextSongList(
-        videoId: videoId,
-        playlistId: playlistId,
-        continuation: continuation,
-        params: params,
-        radio: radio,
-        shuffle: shuffle);
+      videoId: videoId,
+      playlistId: playlistId,
+      continuation: continuation,
+      params: params,
+      radio: radio,
+      shuffle: shuffle,
+    );
     if (!_isSessionValid(session)) return [];
     if (songs["continuation"] != null && maxContinuations > 0) {
       final newOffset = offset + songs["contents"].length as int;
       _fetchAndQueueSongs(
-              continuation: songs["continuation"],
-              isNext: isNext,
-              offset: newOffset,
-              maxContinuations: maxContinuations - 1,
-              session: session)
-          .then((s) async {
+        continuation: songs["continuation"],
+        isNext: isNext,
+        offset: newOffset,
+        maxContinuations: maxContinuations - 1,
+        session: session,
+      ).then((s) async {
         if (!_isSessionValid(session)) return;
         await _addSongListToQueue(s, isNext: isNext, offset: newOffset);
       });
@@ -375,7 +376,9 @@ class MediaPlayer extends ChangeNotifier {
       extras: song,
     );
 
-    final downloadSong = GetIt.I<DownloadManager>().downloads[song['videoId']];
+    final downloadSong = GetIt.I<DownloadManager>().getDownload(
+      song['videoId'],
+    );
     final bool isDownloaded =
         downloadSong != null &&
         downloadSong['status'] == 'DOWNLOADED' &&
@@ -401,20 +404,22 @@ class MediaPlayer extends ChangeNotifier {
     );
   }
 
-  Future<List> _getPlaylistSongs(
-      {required Map<String, dynamic> mediaItem,
-      required Object? session,
-      bool isNext = false}) async {
+  Future<List> _getPlaylistSongs({
+    required Map<String, dynamic> mediaItem,
+    required Object? session,
+    bool isNext = false,
+  }) async {
     if (mediaItem['songs'] != null) {
       // Get Custom or Downloaded Playlist songs
       return mediaItem['songs'];
     } else {
       // Get Online Playlist songs
       return await _fetchAndQueueSongs(
-          playlistId: mediaItem['playlistId'],
-          isNext: isNext,
-          maxContinuations: mediaItem['type'] == 'ARTIST' ? 0 : 50,
-          session: session);
+        playlistId: mediaItem['playlistId'],
+        isNext: isNext,
+        maxContinuations: mediaItem['type'] == 'ARTIST' ? 0 : 50,
+        session: session,
+      );
     }
   }
 
@@ -491,14 +496,20 @@ class MediaPlayer extends ChangeNotifier {
       // Case 2: Playlist
     } else {
       List songs = await _getPlaylistSongs(
-          mediaItem: mediaItem, session: _activeSession);
+        mediaItem: mediaItem,
+        session: _activeSession,
+      );
       if (!_isSessionValid(session)) return;
       await _addSongListToQueue(songs, isNext: false);
     }
   }
 
-  Future<void> startRelated(Map<String, dynamic> song,
-      {bool radio = false, bool shuffle = false, bool isArtist = false}) async {
+  Future<void> startRelated(
+    Map<String, dynamic> song, {
+    bool radio = false,
+    bool shuffle = false,
+    bool isArtist = false,
+  }) async {
     final session = _startSession();
     await _player.clearAudioSources();
     if (!isArtist) {
@@ -545,8 +556,11 @@ class MediaPlayer extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _addSongListToQueue(List songs,
-      {bool isNext = false, int offset = 0}) async {
+  Future<void> _addSongListToQueue(
+    List songs, {
+    bool isNext = false,
+    int offset = 0,
+  }) async {
     if (songs.isEmpty) return;
 
     // Convert your song objects into AudioSources

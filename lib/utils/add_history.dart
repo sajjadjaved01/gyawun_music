@@ -7,7 +7,7 @@ import '../services/settings_manager.dart';
 
 Future<void> addHistory(Map song) async {
   await GetIt.I<HistoryManager>().songs.add(song);
-  final downloadSong = GetIt.I<DownloadManager>().downloads[song['videoId']];
+  final downloadSong = GetIt.I<DownloadManager>().getDownload(song['videoId']);
   if (GetIt.I<SettingsManager>().personalisedContent &&
       (downloadSong == null || downloadSong['status'] != 'DOWNLOADED')) {
     GetIt.I<YTMusic>().addYoutubeHistory(song['videoId']);
