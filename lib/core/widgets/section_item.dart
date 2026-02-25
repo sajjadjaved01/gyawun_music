@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:gyawun/core/widgets/sections/section_multi_column.dart';
 import 'package:gyawun/core/widgets/sections/section_row.dart';
 import 'package:gyawun/core/widgets/tiles/section_list_tile.dart';
+import 'package:m3e_collection/m3e_collection.dart';
 import 'package:yt_music/ytmusic.dart';
 
 import '../../generated/l10n.dart';
@@ -77,7 +78,7 @@ class _SectionItemState extends State<SectionItem> {
                 SingleColumnList(songs: widget.section['contents'])
               else
                 SectionRow(items: widget.section['contents']),
-              if (loadingMore) const AdaptiveProgressRing(),
+              if (loadingMore) const ExpressiveLoadingIndicator(),
               if (widget.section['continuation'] != null && !loadingMore)
                 AdaptiveButton(
                   onPressed: loadMoreItems,
