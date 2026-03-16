@@ -191,6 +191,14 @@ class DownloadManager {
     _processQueue();
   }
 
+  Set<String> get activeDownloadIds => Set.unmodifiable(_activeDownloads);
+
+  Map<String, ValueNotifier<double>> get activeDownloadProgress =>
+      Map.unmodifiable(_activeDownloadProgress);
+
+  /// Returns the song metadata for a currently active download.
+  Map? getActiveSongMetadata(String videoId) => _box.get(videoId);
+
   ValueNotifier<double>? getProgressNotifier(String videoId) {
     return _activeDownloadProgress[videoId];
   }

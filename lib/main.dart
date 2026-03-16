@@ -19,6 +19,7 @@ import 'package:yt_music/ytmusic.dart';
 
 import 'generated/l10n.dart';
 import 'services/download_manager.dart';
+import 'services/download_notification_service.dart';
 import 'services/file_storage.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
@@ -85,7 +86,16 @@ void main() async {
   MediaPlayer mediaPlayer = MediaPlayer();
   GetIt.I.registerSingleton<MediaPlayer>(mediaPlayer);
   LibraryService libraryService = LibraryService();
-  GetIt.I.registerSingleton<DownloadManager>(DownloadManager());
+  final downloadManager = DownloadManager();
+  GetIt.I.registerSingleton<DownloadManager>(downloadManager);
+
+  if (Platform.isAndroid) {
+    final downloadNotifications = DownloadNotificationService();
+    await downloadNotifications.initialize();
+    downloadNotifications.attach(downloadManager);
+    GetIt.I.registerSingleton<DownloadNotificationService>(downloadNotifications);
+  }
+
   GetIt.I.registerSingleton(panelKey);
   GetIt.I.registerSingleton<YTMusic>(ytMusic);
 
