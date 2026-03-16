@@ -27,7 +27,10 @@ class MediaPlayer extends ChangeNotifier {
       ValueNotifier(ButtonState.loading);
   Timer? _timer;
   Timer? _statsTimer;
+  Timer? _sleepFadeTimer;
+  StreamSubscription<PlayerState>? _endOfTrackSub;
   final ValueNotifier<Duration?> _timerDuration = ValueNotifier(null);
+  final ValueNotifier<bool> _endOfTrackMode = ValueNotifier(false);
 
   final ValueNotifier<LoopMode> _loopMode = ValueNotifier(LoopMode.off);
 
@@ -36,7 +39,13 @@ class MediaPlayer extends ChangeNotifier {
 
   bool _shuffleModeEnabled = false;
 
-  bool autoFetching=false;
+  bool autoFetching = false;
+
+  // Crossfade state
+  Timer? _crossfadeTimer;
+  bool _isFadingOut = false;
+  bool _isFadingIn = false;
+  int? _fadeOutTriggeredForIndex;
 
   MediaPlayer() {
     if (Platform.isAndroid) {
@@ -68,6 +77,7 @@ class MediaPlayer extends ChangeNotifier {
   bool get shuffleModeEnabled => _shuffleModeEnabled;
   ValueNotifier<LoopMode> get loopMode => _loopMode;
   ValueNotifier<Duration?> get timerDuration => _timerDuration;
+  ValueNotifier<bool> get endOfTrackMode => _endOfTrackMode;
 
   Stream<
       ({
@@ -116,6 +126,7 @@ class MediaPlayer extends ChangeNotifier {
     _listenToChangesInSong();
     _listenToShuffle();
     _listenToAutofetch();
+    _listenForCrossfade();
 
     _statsTimer = Timer.periodic(AppConstants.statsReportInterval, (timer) {
       if (currentSongNotifier.value != null && _player.playing) {
@@ -329,12 +340,7 @@ class MediaPlayer extends ChangeNotifier {
 
   Future<void> playSong(Map<String, dynamic> song) async {
     if (song['videoId'] == null) return;
-
-    // stop and set the tapped song as the single source so it plays immediately
-    // await _player.pause();
-    // await _player.stop();
-    // await _player.clearAudioSources();
-
+    _cancelCrossfade();
     final source = await _getAudioSource(song);
     await _player.setAudioSource(source);
     await _player.play();
@@ -374,7 +380,7 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> playAll(List songs, {int index = 0}) async {
-
+    _cancelCrossfade();
     // Build full list and set atomically
     final List<AudioSource> sources = [];
     for (final s in songs) {
@@ -436,6 +442,7 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    _cancelCrossfade();
     await _player.stop();
     await _player.clearAudioSources();
     await _player.seek(Duration.zero, index: 0);
@@ -482,35 +489,251 @@ class MediaPlayer extends ChangeNotifier {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Sleep timer
+  // ---------------------------------------------------------------------------
+
+  /// Volume fade duration applied when the sleep timer reaches its last 30 s.
+  static const int _sleepFadeSeconds = 30;
+
+  /// Start a countdown sleep timer. Pauses playback when [duration] expires.
+  /// When [GetIt.I<SettingsManager>().sleepTimerFadeOut] is true and the timer
+  /// still has 30 s or more remaining, volume is faded out in the last 30 s
+  /// before pausing.
   void setTimer(Duration duration) {
+    _cancelSleepTimer();
     int seconds = duration.inSeconds;
-    _timer?.cancel();
+    _timerDuration.value = duration;
+    _endOfTrackMode.value = false;
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       seconds--;
       _timerDuration.value = Duration(seconds: seconds);
-      if (seconds == 0) {
-        cancelTimer();
-        _player.pause();
+
+      final bool fadeEnabled = GetIt.I<SettingsManager>().sleepTimerFadeOut;
+      // Kick off the fade only once, exactly when `_sleepFadeSeconds` remain.
+      if (fadeEnabled &&
+          seconds == _sleepFadeSeconds &&
+          _sleepFadeTimer == null) {
+        _startSleepFade();
       }
-      notifyListeners();
+
+      if (seconds <= 0) {
+        _onSleepTimerExpired();
+      } else {
+        notifyListeners();
+      }
     });
+    notifyListeners();
+  }
+
+  /// Arm "finish current song then stop" mode.
+  /// Pauses (with optional fade) after the currently-playing track completes.
+  void setEndOfTrackTimer() {
+    _cancelSleepTimer();
+    _endOfTrackMode.value = true;
+    _timerDuration.value = null;
+
+    _endOfTrackSub = _player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        _onSleepTimerExpired();
+      }
+    });
+    notifyListeners();
   }
 
   void cancelTimer() {
-    _timerDuration.value = null;
-    _timer?.cancel();
+    _cancelSleepTimer();
     notifyListeners();
+  }
+
+  // Tears down all sleep-timer state without firing notifyListeners.
+  void _cancelSleepTimer() {
+    _timer?.cancel();
+    _timer = null;
+    // Restore volume only if a sleep fade was actively running.
+    final bool wasF = _sleepFadeTimer != null;
+    _sleepFadeTimer?.cancel();
+    _sleepFadeTimer = null;
+    _endOfTrackSub?.cancel();
+    _endOfTrackSub = null;
+    _timerDuration.value = null;
+    _endOfTrackMode.value = false;
+    if (wasF) {
+      _player.setVolume(1.0);
+    }
+  }
+
+  /// Gradually reduce volume to 0 over [_sleepFadeSeconds] seconds (500 ms steps).
+  void _startSleepFade() {
+    _sleepFadeTimer?.cancel();
+    final double startVolume = _player.volume;
+    // 60 steps over 30 s at 500 ms each.
+    const int steps = 60;
+    final double stepSize = startVolume / steps;
+    int elapsed = 0;
+
+    _sleepFadeTimer =
+        Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      elapsed++;
+      final double newVolume =
+          (startVolume - stepSize * elapsed).clamp(0.0, 1.0);
+      _player.setVolume(newVolume);
+      if (newVolume <= 0.0) {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _onSleepTimerExpired() {
+    _timer?.cancel();
+    _timer = null;
+    _sleepFadeTimer?.cancel();
+    _sleepFadeTimer = null;
+    _endOfTrackSub?.cancel();
+    _endOfTrackSub = null;
+    _timerDuration.value = null;
+    _endOfTrackMode.value = false;
+
+    _player.pause().then((_) {
+      // Always restore to full volume so the next listening session is normal.
+      _player.setVolume(1.0);
+    });
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Crossfade
+  // ---------------------------------------------------------------------------
+
+  void _listenForCrossfade() {
+    // Monitor position to trigger fade-out near end of track.
+    _player.positionStream.listen((position) {
+      final crossfadeSeconds =
+          GetIt.I<SettingsManager>().crossfadeDuration;
+      if (crossfadeSeconds == 0) return;
+
+      final duration = _player.duration;
+      if (duration == null || duration == Duration.zero) return;
+
+      // Only fade when actually playing and not looping a single song.
+      if (!_player.playing) return;
+      if (_loopMode.value == LoopMode.one) return;
+
+      final currentIdx = _player.currentIndex;
+      final sequenceLength = _player.sequence.length;
+
+      // Don't fade out on the last track if loop is off (nothing to cross into).
+      if (_loopMode.value == LoopMode.off &&
+          currentIdx != null &&
+          currentIdx >= sequenceLength - 1) {
+        return;
+      }
+
+      final remaining = duration - position;
+      final fadeWindow = Duration(seconds: crossfadeSeconds);
+
+      if (remaining <= fadeWindow &&
+          !_isFadingOut &&
+          _fadeOutTriggeredForIndex != currentIdx) {
+        _fadeOutTriggeredForIndex = currentIdx;
+        _startFadeOut(crossfadeSeconds, remaining);
+      }
+    });
+
+    // When the track index changes, fade in the new track.
+    _player.currentIndexStream.listen((index) {
+      if (index == null) return;
+      final crossfadeSeconds =
+          GetIt.I<SettingsManager>().crossfadeDuration;
+      if (crossfadeSeconds == 0) return;
+
+      // If we were fading out, the track changed — now fade in.
+      if (_isFadingOut || _player.volume < 1.0) {
+        _isFadingOut = false;
+        _crossfadeTimer?.cancel();
+        _startFadeIn(crossfadeSeconds);
+      }
+    });
+  }
+
+  void _startFadeOut(int durationSeconds, Duration remaining) {
+    _isFadingOut = true;
+    _crossfadeTimer?.cancel();
+
+    final totalSteps = durationSeconds * 20; // 20 ticks per second (50 ms)
+    final stepInterval = const Duration(milliseconds: 50);
+    final startVolume = _player.volume;
+    int step = 0;
+
+    _crossfadeTimer = Timer.periodic(stepInterval, (timer) {
+      if (!_isFadingOut) {
+        timer.cancel();
+        return;
+      }
+      step++;
+      final progress = step / totalSteps;
+      final newVolume = (startVolume * (1.0 - progress)).clamp(0.0, 1.0);
+      _player.setVolume(newVolume);
+
+      if (progress >= 1.0 || newVolume <= 0.0) {
+        timer.cancel();
+        // Don't reset _isFadingOut here; track-change listener will do that.
+      }
+    });
+  }
+
+  void _startFadeIn(int durationSeconds) {
+    _isFadingIn = true;
+    _crossfadeTimer?.cancel();
+
+    // Ensure we start silent so the fade-in is audible.
+    _player.setVolume(0.0);
+
+    final totalSteps = durationSeconds * 20;
+    final stepInterval = const Duration(milliseconds: 50);
+    int step = 0;
+
+    _crossfadeTimer = Timer.periodic(stepInterval, (timer) {
+      if (!_isFadingIn) {
+        timer.cancel();
+        return;
+      }
+      step++;
+      final progress = step / totalSteps;
+      final newVolume = progress.clamp(0.0, 1.0);
+      _player.setVolume(newVolume);
+
+      if (progress >= 1.0) {
+        _isFadingIn = false;
+        timer.cancel();
+      }
+    });
+  }
+
+  /// Reset any in-progress crossfade and restore full volume.
+  /// Called when the user manually seeks, skips, or changes tracks.
+  void _cancelCrossfade() {
+    _crossfadeTimer?.cancel();
+    _isFadingOut = false;
+    _isFadingIn = false;
+    _fadeOutTriggeredForIndex = null;
+    _player.setVolume(1.0);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _statsTimer?.cancel();
+    _sleepFadeTimer?.cancel();
+    _endOfTrackSub?.cancel();
+    _crossfadeTimer?.cancel();
     _player.dispose();
     _currentSongNotifier.dispose();
     _currentIndex.dispose();
     _buttonState.dispose();
     _timerDuration.dispose();
+    _endOfTrackMode.dispose();
     _loopMode.dispose();
     _progressBarState.dispose();
     super.dispose();

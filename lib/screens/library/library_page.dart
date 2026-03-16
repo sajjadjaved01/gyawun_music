@@ -15,6 +15,7 @@ import 'package:gyawun/core/widgets/rounded_polygon_icon.dart';
 import 'package:gyawun/screens/settings/widgets/color_icon.dart';
 import '../../../../generated/l10n.dart';
 import '../../../../services/library.dart';
+import '../../../../services/smart_playlist_service.dart';
 import '../../../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../../../utils/bottom_modals.dart';
 import 'cubit/library_cubit.dart';
@@ -59,12 +60,18 @@ class LibraryPage extends StatelessWidget {
                   :final favouritesCount,
                   :final downloadsCount,
                   :final historyCount,
+                  :final mostPlayedCount,
+                  :final recentlyPlayedCount,
+                  :final leastPlayedCount,
                 ) =>
                   _LibraryBody(
                     playlists: playlists,
                     favouritesCount: favouritesCount,
                     downloadsCount: downloadsCount,
                     historyCount: historyCount,
+                    mostPlayedCount: mostPlayedCount,
+                    recentlyPlayedCount: recentlyPlayedCount,
+                    leastPlayedCount: leastPlayedCount,
                   ),
               },
             ),
@@ -81,12 +88,18 @@ class _LibraryBody extends StatelessWidget {
     this.favouritesCount = 0,
     this.downloadsCount = 0,
     this.historyCount = 0,
+    this.mostPlayedCount = 0,
+    this.recentlyPlayedCount = 0,
+    this.leastPlayedCount = 0,
   });
 
   final Map playlists;
   final int favouritesCount;
   final int downloadsCount;
   final int historyCount;
+  final int mostPlayedCount;
+  final int recentlyPlayedCount;
+  final int leastPlayedCount;
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +161,12 @@ class _LibraryBody extends StatelessWidget {
                       ],
                     ),
 
+                    SizedBox(height: 17),
+                    _SmartPlaylistsSection(
+                      mostPlayedCount: mostPlayedCount,
+                      recentlyPlayedCount: recentlyPlayedCount,
+                      leastPlayedCount: leastPlayedCount,
+                    ),
                     SizedBox(height: 17),
                     if (playlists.isNotEmpty)
                       ExpressiveListGroup(
@@ -252,5 +271,71 @@ class _LibraryBody extends StatelessWidget {
     } else if (item['isPredefined'] == false) {
       Modals.showPlaylistBottomModal(context, {...item, 'playlistId': key});
     }
+  }
+}
+
+class _SmartPlaylistsSection extends StatelessWidget {
+  const _SmartPlaylistsSection({
+    required this.mostPlayedCount,
+    required this.recentlyPlayedCount,
+    required this.leastPlayedCount,
+  });
+
+  final int mostPlayedCount;
+  final int recentlyPlayedCount;
+  final int leastPlayedCount;
+
+  static const _smartPlaylists = [
+    (
+      type: SmartPlaylistType.mostPlayed,
+      icon: FluentIcons.fire_24_filled,
+      color: Color(0xFFE53935),
+    ),
+    (
+      type: SmartPlaylistType.recentlyPlayed,
+      icon: FluentIcons.clock_24_filled,
+      color: Color(0xFF1E88E5),
+    ),
+    (
+      type: SmartPlaylistType.leastPlayed,
+      icon: FluentIcons.leaf_two_24_filled,
+      color: Color(0xFF43A047),
+    ),
+  ];
+
+  int _countFor(SmartPlaylistType type) {
+    switch (type) {
+      case SmartPlaylistType.mostPlayed:
+        return mostPlayedCount;
+      case SmartPlaylistType.recentlyPlayed:
+        return recentlyPlayedCount;
+      case SmartPlaylistType.leastPlayed:
+        return leastPlayedCount;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpressiveListGroup(
+      title: 'Smart Playlists',
+      children: _smartPlaylists
+          .map(
+            (entry) => ExpressiveListTile(
+              title: Text(entry.type.title),
+              leading: ColorIcon(
+                icon: entry.icon,
+                color: entry.color.withAlpha(200),
+                size: 30,
+              ),
+              subtitle: Text(S.of(context).nSongs(_countFor(entry.type))),
+              trailing: const Icon(FluentIcons.chevron_right_24_filled),
+              onTap: () => context.push(
+                '/library/smart_playlist',
+                extra: {'type': entry.type},
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
 }

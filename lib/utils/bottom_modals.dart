@@ -862,34 +862,36 @@ BottomModalLayout _playerOptionsModal(BuildContext context, Map song) {
             leading: Icon(AdaptiveIcons.timer),
             title: Text(S.of(context).Sleep_Timer),
             onTap: () {
-              showDurationPicker(
+              showModalBottomSheet(
                 context: context,
-                initialTime: const Duration(minutes: 30),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: AdaptiveTheme.of(context).inactiveBackgroundColor,
-                ),
-              ).then((duration) {
-                if (duration != null) {
-                  if (context.mounted) {
-                    context.read<MediaPlayer>().setTimer(duration);
-                  }
-                }
-              });
+                useRootNavigator: false,
+                backgroundColor: Colors.transparent,
+                isScrollControlled: true,
+                useSafeArea: true,
+                builder: (_) => const _SleepTimerSheet(),
+              );
             },
             trailing: ValueListenableBuilder(
               valueListenable: GetIt.I<MediaPlayer>().timerDuration,
-              builder: (context, value, child) {
-                return value == null
-                    ? const SizedBox.shrink()
-                    : TextButton.icon(
-                        onPressed: () {
-                          GetIt.I<MediaPlayer>().cancelTimer();
-                        },
-                        label: Text(formatDuration(value)),
-                        icon: const Icon(CupertinoIcons.clear),
-                        iconAlignment: IconAlignment.end,
-                      );
+              builder: (context, timerValue, _) {
+                return ValueListenableBuilder(
+                  valueListenable: GetIt.I<MediaPlayer>().endOfTrackMode,
+                  builder: (context, endOfTrack, _) {
+                    final bool active =
+                        timerValue != null || endOfTrack;
+                    if (!active) return const SizedBox.shrink();
+                    return TextButton.icon(
+                      onPressed: () => GetIt.I<MediaPlayer>().cancelTimer(),
+                      label: Text(
+                        endOfTrack
+                            ? 'End of track'
+                            : formatDuration(timerValue!),
+                      ),
+                      icon: const Icon(CupertinoIcons.clear),
+                      iconAlignment: IconAlignment.end,
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -1537,6 +1539,209 @@ BottomModalLayout _accentSelector(BuildContext context) {
       ],
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Sleep Timer Sheet
+// ---------------------------------------------------------------------------
+
+class _SleepTimerSheet extends StatefulWidget {
+  const _SleepTimerSheet();
+
+  @override
+  State<_SleepTimerSheet> createState() => _SleepTimerSheetState();
+}
+
+class _SleepTimerSheetState extends State<_SleepTimerSheet> {
+  static const List<Duration> _presets = [
+    Duration(minutes: 15),
+    Duration(minutes: 30),
+    Duration(minutes: 45),
+    Duration(hours: 1),
+  ];
+
+  static const List<String> _presetLabels = [
+    '15 min',
+    '30 min',
+    '45 min',
+    '1 hour',
+  ];
+
+  bool _fadeEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeEnabled = GetIt.I<SettingsManager>().sleepTimerFadeOut;
+  }
+
+  String _formatRemaining(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  void _setPreset(Duration duration) {
+    GetIt.I<MediaPlayer>().setTimer(duration);
+    Navigator.pop(context);
+  }
+
+  void _setEndOfTrack() {
+    GetIt.I<MediaPlayer>().setEndOfTrackTimer();
+    Navigator.pop(context);
+  }
+
+  Future<void> _pickCustomDuration() async {
+    final duration = await showDurationPicker(
+      context: context,
+      initialTime: const Duration(minutes: 30),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: AdaptiveTheme.of(context).inactiveBackgroundColor,
+      ),
+    );
+    if (duration != null && mounted) {
+      GetIt.I<MediaPlayer>().setTimer(duration);
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return BottomModalLayout(
+      title: Center(
+        child: Text(
+          S.of(context).Sleep_Timer,
+          style: bigTextStyle(context),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Active timer status banner
+            ValueListenableBuilder(
+              valueListenable: GetIt.I<MediaPlayer>().timerDuration,
+              builder: (context, timerValue, _) {
+                return ValueListenableBuilder(
+                  valueListenable: GetIt.I<MediaPlayer>().endOfTrackMode,
+                  builder: (context, endOfTrack, _) {
+                    final bool active = timerValue != null || endOfTrack;
+                    if (!active) return const SizedBox.shrink();
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.timer,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              endOfTrack
+                                  ? 'Stops after current song'
+                                  : 'Stops in ${_formatRemaining(timerValue!)}',
+                              style: TextStyle(
+                                color: colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                GetIt.I<MediaPlayer>().cancelTimer(),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                  color: colorScheme.onPrimaryContainer),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+
+            // Preset chips
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (int i = 0; i < _presets.length; i++)
+                  _PresetChip(
+                    label: _presetLabels[i],
+                    onTap: () => _setPreset(_presets[i]),
+                  ),
+                _PresetChip(
+                  label: 'End of track',
+                  icon: CupertinoIcons.music_note,
+                  onTap: _setEndOfTrack,
+                ),
+                _PresetChip(
+                  label: 'Custom...',
+                  icon: CupertinoIcons.pencil,
+                  onTap: _pickCustomDuration,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Fade out toggle
+            AdaptiveListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              leading: const Icon(CupertinoIcons.volume_down),
+              title: const Text('Fade out'),
+              subtitle:
+                  const Text('Gradually reduce volume in the last 30 seconds'),
+              trailing: AdaptiveSwitch(
+                value: _fadeEnabled,
+                onChanged: (value) {
+                  setState(() => _fadeEnabled = value);
+                  GetIt.I<SettingsManager>().sleepTimerFadeOut = value;
+                },
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PresetChip extends StatelessWidget {
+  const _PresetChip({
+    required this.label,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      avatar: icon != null ? Icon(icon, size: 16) : null,
+      label: Text(label),
+      onPressed: onTap,
+    );
+  }
 }
 
 class BottomModalLayout extends StatelessWidget {

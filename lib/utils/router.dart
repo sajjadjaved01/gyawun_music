@@ -12,6 +12,8 @@ import 'package:gyawun/screens/library/favourites/favourites_page.dart';
 import 'package:gyawun/screens/library/history/history_page.dart';
 import 'package:gyawun/screens/library/library_page.dart';
 import 'package:gyawun/screens/library/playlist/playlist_details_page.dart';
+import 'package:gyawun/screens/library/smart_playlist/smart_playlist_page.dart';
+import 'package:gyawun/services/smart_playlist_service.dart';
 import 'package:gyawun/screens/player/player_page.dart';
 import 'package:gyawun/screens/search/search_page.dart';
 import 'package:gyawun/screens/settings/about/about_page.dart';
@@ -145,6 +147,15 @@ List<StatefulShellBranch> branches = [
             final args = state.extra as Map<String, dynamic>;
             return PlaylistDetailsPage(
               playlistkey: args['playlistkey'] as String,
+            );
+          },
+        ),
+        GoRoute(
+          path: 'smart_playlist',
+          builder: (context, state) {
+            final args = state.extra as Map<String, dynamic>;
+            return SmartPlaylistPage(
+              type: args['type'] as SmartPlaylistType,
             );
           },
         ),

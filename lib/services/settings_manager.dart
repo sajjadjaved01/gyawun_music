@@ -29,6 +29,8 @@ class SettingsManager extends ChangeNotifier {
   List<double> _equalizerBandsGain = [];
   bool _loudnessEnabled = false;
   double _loudnessTargetGain = 0.0;
+  int _crossfadeDuration = 0;
+  bool _sleepTimerFadeOut = true;
 
   ThemeMode get themeMode => _themeMode;
   List<ThemeMode> get themeModes => _themeModes;
@@ -49,6 +51,10 @@ class SettingsManager extends ChangeNotifier {
   List<double> get equalizerBandsGain => _equalizerBandsGain;
   bool get loudnessEnabled => _loudnessEnabled;
   double get loudnessTargetGain => _loudnessTargetGain;
+  int get crossfadeDuration => _crossfadeDuration;
+  bool get sleepTimerFadeOut => _sleepTimerFadeOut;
+
+  static const List<int> crossfadeDurationOptions = [0, 2, 4, 6, 8, 10, 12];
 
   Map get settings => _box.toMap();
   SettingsManager() {
@@ -78,6 +84,8 @@ class SettingsManager extends ChangeNotifier {
     _loudnessTargetGain = _box.get('LOUDNESS_TARGET_GAIN', defaultValue: 0.0);
     _equalizerBandsGain =
         _box.get('EQUALIZER_BANDS_GAIN', defaultValue: []).cast<double>();
+    _crossfadeDuration = _box.get('CROSSFADE_DURATION', defaultValue: 0);
+    _sleepTimerFadeOut = _box.get('SLEEP_TIMER_FADE_OUT', defaultValue: true);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
@@ -172,6 +180,18 @@ class SettingsManager extends ChangeNotifier {
   set loudnessTargetGain(double value) {
     _box.put('LOUDNESS_TARGET_GAIN', value);
     _loudnessTargetGain = value;
+    notifyListeners();
+  }
+
+  set crossfadeDuration(int value) {
+    _box.put('CROSSFADE_DURATION', value);
+    _crossfadeDuration = value;
+    notifyListeners();
+  }
+
+  set sleepTimerFadeOut(bool value) {
+    _box.put('SLEEP_TIMER_FADE_OUT', value);
+    _sleepTimerFadeOut = value;
     notifyListeners();
   }
 

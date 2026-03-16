@@ -7,8 +7,10 @@ sealed class PlayerSettingsState {
 
 class PlayerSettingsLoaded extends PlayerSettingsState {
   final bool skipSilence;
+  final int crossfadeDuration;
 
   const PlayerSettingsLoaded({
     required this.skipSilence,
+    required this.crossfadeDuration,
   });
 }

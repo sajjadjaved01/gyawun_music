@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../../services/library.dart';
+import '../../../../services/smart_playlist_service.dart';
 
 part 'library_state.dart';
 
@@ -39,12 +40,23 @@ class LibraryCubit extends Cubit<LibraryState> {
       final downloadedCount =
           _downloadsBox.values.where((e) => e['status'] == 'DOWNLOADED').length;
 
+      final smartService = SmartPlaylistService();
+
       emit(
         LibraryLoaded(
           playlists: libraryService.playlists,
           favouritesCount: _favouritesBox.length,
           downloadsCount: downloadedCount,
           historyCount: _historyBox.length,
+          mostPlayedCount: smartService
+              .getSongs(SmartPlaylistType.mostPlayed)
+              .length,
+          recentlyPlayedCount: smartService
+              .getSongs(SmartPlaylistType.recentlyPlayed)
+              .length,
+          leastPlayedCount: smartService
+              .getSongs(SmartPlaylistType.leastPlayed)
+              .length,
         ),
       );
     } catch (e) {

@@ -17,6 +17,8 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
       : super(
           PlayerSettingsLoaded(
             skipSilence: GetIt.I<SettingsManager>().skipSilence,
+            crossfadeDuration:
+                GetIt.I<SettingsManager>().crossfadeDuration,
           ),
         ) {
     _listener = () {
@@ -34,6 +36,7 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
     emit(
       PlayerSettingsLoaded(
         skipSilence: _settings.skipSilence,
+        crossfadeDuration: _settings.crossfadeDuration,
       ),
     );
   }
@@ -41,6 +44,11 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
   Future<void> setSkipSilence(bool value) async {
     await _player.skipSilence(value);
     _settings.skipSilence = value;
+    // listener will re-emit
+  }
+
+  void setCrossfadeDuration(int seconds) {
+    _settings.crossfadeDuration = seconds;
     // listener will re-emit
   }
 
