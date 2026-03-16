@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:gyawun/core/constants/app_constants.dart';
 import 'package:gyawun/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -25,6 +26,7 @@ class MediaPlayer extends ChangeNotifier {
   final ValueNotifier<ButtonState> _buttonState =
       ValueNotifier(ButtonState.loading);
   Timer? _timer;
+  Timer? _statsTimer;
   final ValueNotifier<Duration?> _timerDuration = ValueNotifier(null);
 
   final ValueNotifier<LoopMode> _loopMode = ValueNotifier(LoopMode.off);
@@ -115,7 +117,7 @@ class MediaPlayer extends ChangeNotifier {
     _listenToShuffle();
     _listenToAutofetch();
 
-    Timer.periodic(const Duration(seconds: 10), (timer) {
+    _statsTimer = Timer.periodic(AppConstants.statsReportInterval, (timer) {
       if (currentSongNotifier.value != null && _player.playing) {
         GetIt.I<YTMusic>()
             .addPlayingStats(currentSongNotifier.value!.id, _player.position);
@@ -498,6 +500,20 @@ class MediaPlayer extends ChangeNotifier {
     _timerDuration.value = null;
     _timer?.cancel();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _statsTimer?.cancel();
+    _player.dispose();
+    _currentSongNotifier.dispose();
+    _currentIndex.dispose();
+    _buttonState.dispose();
+    _timerDuration.dispose();
+    _loopMode.dispose();
+    _progressBarState.dispose();
+    super.dispose();
   }
 }
 

@@ -510,41 +510,57 @@ class NameAndControls extends StatelessWidget {
                       valueListenable: Hive.box('FAVOURITES').listenable(),
                       builder: (context, value, child) {
                         Map? item = value.get(song?.extras?['videoId']);
-                        return AdaptiveIconButton(
-                          icon: Icon(
-                            item == null
-                                ? AdaptiveIcons.heart
-                                : AdaptiveIcons.heart_fill,
-                            size: 30,
+                        final bool isFav = item != null;
+                        return Semantics(
+                          button: true,
+                          label: isFav
+                              ? 'Remove from favourites'
+                              : 'Add to favourites',
+                          child: AdaptiveIconButton(
+                            icon: Icon(
+                              isFav
+                                  ? AdaptiveIcons.heart_fill
+                                  : AdaptiveIcons.heart,
+                              size: 30,
+                            ),
+                            onPressed: () async {
+                              if (item == null) {
+                                await Hive.box('FAVOURITES').put(
+                                  song!.extras!['videoId'],
+                                  {
+                                    ...song!.extras!,
+                                    'createdAt':
+                                        DateTime.now().millisecondsSinceEpoch,
+                                  },
+                                );
+                              } else {
+                                await value.delete(song!.extras!['videoId']);
+                              }
+                            },
                           ),
-                          onPressed: () async {
-                            if (item == null) {
-                              await Hive.box(
-                                'FAVOURITES',
-                              ).put(song!.extras!['videoId'], {
-                                ...song!.extras!,
-                                'createdAt':
-                                    DateTime.now().millisecondsSinceEpoch,
-                              });
-                            } else {
-                              await value.delete(song!.extras!['videoId']);
-                            }
-                          },
                         );
                       },
                     ),
-                    AdaptiveIconButton(
-                      onPressed: () {
-                        mediaPlayer.player.seekToPrevious();
-                      },
-                      icon: Icon(AdaptiveIcons.skip_previous, size: 30),
+                    Semantics(
+                      button: true,
+                      label: 'Previous song',
+                      child: AdaptiveIconButton(
+                        onPressed: () {
+                          mediaPlayer.player.seekToPrevious();
+                        },
+                        icon: Icon(AdaptiveIcons.skip_previous, size: 30),
+                      ),
                     ),
                     const PlayPauseButton(size: 40),
-                    AdaptiveIconButton(
-                      onPressed: () {
-                        mediaPlayer.player.seekToNext();
-                      },
-                      icon: Icon(AdaptiveIcons.skip_next, size: 30),
+                    Semantics(
+                      button: true,
+                      label: 'Next song',
+                      child: AdaptiveIconButton(
+                        onPressed: () {
+                          mediaPlayer.player.seekToNext();
+                        },
+                        icon: Icon(AdaptiveIcons.skip_next, size: 30),
+                      ),
                     ),
                     ValueListenableBuilder(
                       valueListenable: mediaPlayer.loopMode,
@@ -606,13 +622,17 @@ class NameAndControls extends StatelessWidget {
                             return const Icon(Icons.download_done_outlined);
                           }
                         }
-                        return AdaptiveIconButton(
-                          onPressed: () {
-                            GetIt.I<DownloadManager>().downloadSong(
-                              song!.extras!,
-                            );
-                          },
-                          icon: Icon(AdaptiveIcons.download, size: 30),
+                        return Semantics(
+                          button: true,
+                          label: 'Download ${song?.title ?? 'song'}',
+                          child: AdaptiveIconButton(
+                            onPressed: () {
+                              GetIt.I<DownloadManager>().downloadSong(
+                                song!.extras!,
+                              );
+                            },
+                            icon: Icon(AdaptiveIcons.download, size: 30),
+                          ),
                         );
                       },
                     ),

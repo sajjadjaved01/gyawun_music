@@ -15,22 +15,19 @@ class BottomPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     final mediaPlayer = GetIt.I<MediaPlayer>();
     return StreamBuilder(
-        stream: mediaPlayer.currentTrackStream,
-        builder: (
-          context,
-          snapshot,
-        ) {
-          final data = snapshot.data;
-          final currentSong = data?.currentItem;
-          if (currentSong == null) {
-            return const SizedBox(); // or loading indicator
-          }
-          return Container(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
+      stream: mediaPlayer.currentTrackStream,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        final currentSong = data?.currentItem;
+        if (currentSong == null) {
+          return const SizedBox();
+        }
+        return Container(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: Semantics(
+            label: 'Now playing: ${currentSong.title}. Tap to open player.',
             child: GestureDetector(
-              onTap: () {
-                context.push('/player');
-              },
+              onTap: () => context.push('/player'),
               child: SafeArea(
                 top: false,
                 child: Dismissible(
@@ -44,7 +41,9 @@ class BottomPlayer extends StatelessWidget {
                     key: Key(currentSong.id),
                     confirmDismiss: (direction) async {
                       if (direction == DismissDirection.startToEnd) {
-                        await GetIt.I<MediaPlayer>().player.seekToPrevious();
+                        await GetIt.I<MediaPlayer>()
+                            .player
+                            .seekToPrevious();
                       } else {
                         await GetIt.I<MediaPlayer>().player.seekToNext();
                       }
@@ -52,7 +51,9 @@ class BottomPlayer extends StatelessWidget {
                     },
                     child: AdaptiveListTile(
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: SongThumbnail(
@@ -65,7 +66,6 @@ class BottomPlayer extends StatelessWidget {
                       ),
                       title: Text(
                         currentSong.title,
-                        // style: textStyle(context, bold: true),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -81,53 +81,69 @@ class BottomPlayer extends StatelessWidget {
                       trailing: Row(
                         children: [
                           ValueListenableBuilder(
-                            valueListenable: GetIt.I<MediaPlayer>().buttonState,
+                            valueListenable:
+                                GetIt.I<MediaPlayer>().buttonState,
                             builder: (context, buttonState, child) {
-                              return (buttonState == ButtonState.loading)
-                                  ? const AdaptiveProgressRing()
-                                  : AdaptiveIconButton(
-                                      onPressed: () {
-                                        GetIt.I<MediaPlayer>().player.playing
-                                            ? GetIt.I<MediaPlayer>()
-                                                .player
-                                                .pause()
-                                            : GetIt.I<MediaPlayer>()
-                                                .player
-                                                .play();
-                                      },
-                                      icon: Icon(
-                                        buttonState == ButtonState.playing
-                                            ? Icons.pause
-                                            : Icons.play_arrow,
-                                        size: 30,
-                                      ),
-                                    );
+                              if (buttonState == ButtonState.loading) {
+                                return Semantics(
+                                  label: 'Loading',
+                                  child: const AdaptiveProgressRing(),
+                                );
+                              }
+                              final isPlaying =
+                                  buttonState == ButtonState.playing;
+                              return Semantics(
+                                button: true,
+                                label: isPlaying ? 'Pause' : 'Play',
+                                child: AdaptiveIconButton(
+                                  onPressed: () {
+                                    GetIt.I<MediaPlayer>().player.playing
+                                        ? GetIt.I<MediaPlayer>()
+                                            .player
+                                            .pause()
+                                        : GetIt.I<MediaPlayer>()
+                                            .player
+                                            .play();
+                                  },
+                                  icon: Icon(
+                                    isPlaying
+                                        ? Icons.pause
+                                        : Icons.play_arrow,
+                                    size: 30,
+                                  ),
+                                ),
+                              );
                             },
                           ),
                           StreamBuilder(
-                              stream: context
+                            stream: context
+                                .watch<MediaPlayer>()
+                                .player
+                                .sequenceStateStream,
+                            builder: (context, snapshot) {
+                              if (context
                                   .watch<MediaPlayer>()
                                   .player
-                                  .sequenceStateStream,
-                              builder: (context, snapshot) {
-                                if (context
-                                    .watch<MediaPlayer>()
-                                    .player
-                                    .hasNext) {
-                                  return AdaptiveIconButton(
+                                  .hasNext) {
+                                return Semantics(
+                                  button: true,
+                                  label: 'Skip to next song',
+                                  child: AdaptiveIconButton(
                                     onPressed: () {
                                       GetIt.I<MediaPlayer>()
                                           .player
                                           .seekToNext();
                                     },
-                                    icon: Icon(
+                                    icon: const Icon(
                                       Icons.skip_next,
                                       size: 25,
                                     ),
-                                  );
-                                }
-                                return const SizedBox.shrink();
-                              })
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -135,7 +151,9 @@ class BottomPlayer extends StatelessWidget {
                 ),
               ),
             ),
-          );
-        });
+          ),
+        );
+      },
+    );
   }
 }

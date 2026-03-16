@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
+import '../core/constants/app_constants.dart';
+
 class AudioStreamClient {
   final http.Client _httpClient = http.Client();
 
@@ -82,10 +84,10 @@ class AudioStreamClient {
       } on HttpClientClosedException {
         break;
       } on Exception {
-        if (errorCount == 5) {
+        if (errorCount == AppConstants.httpRetryCount) {
           rethrow;
         }
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(AppConstants.retryDelay);
         yield* _getStream(
           streamInfo,
           streamClient: streamClient,
@@ -125,7 +127,7 @@ class AudioStreamClient {
     AudioStreamClient? client,
     FutureOr<T> Function() function,
   ) async {
-    var retryCount = 5;
+    var retryCount = AppConstants.httpRetryCount;
 
     // ignore: literal_only_boolean_expressions
     while (true) {
@@ -137,7 +139,7 @@ class AudioStreamClient {
         if (retryCount <= 0) {
           rethrow;
         }
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(AppConstants.retryDelay);
       }
     }
   }
@@ -160,8 +162,6 @@ class AudioStreamClient {
       }
     });
 
-    // print(request);
-    // print(StackTrace.current);
     return _httpClient.send(request);
   }
 }

@@ -94,24 +94,40 @@ class _AppShellState extends State<AppShell> {
                       NavigationRailM3ESection(
                         destinations: [
                           NavigationRailM3EDestination(
-                            selectedIcon: const Icon(
-                              FluentIcons.home_24_filled,
+                            selectedIcon: Semantics(
+                              label: S.of(context).Home,
+                              child: const Icon(FluentIcons.home_24_filled),
                             ),
-                            icon: const Icon(FluentIcons.home_24_regular),
+                            icon: Semantics(
+                              label: S.of(context).Home,
+                              child: const Icon(FluentIcons.home_24_regular),
+                            ),
                             label: S.of(context).Home,
                           ),
                           NavigationRailM3EDestination(
-                            selectedIcon: const Icon(
-                              FluentIcons.library_24_filled,
+                            selectedIcon: Semantics(
+                              label: 'Library',
+                              child: const Icon(
+                                  FluentIcons.library_24_filled),
                             ),
-                            icon: const Icon(FluentIcons.library_24_regular),
+                            icon: Semantics(
+                              label: 'Library',
+                              child: const Icon(
+                                  FluentIcons.library_24_regular),
+                            ),
                             label: 'Library',
                           ),
                           NavigationRailM3EDestination(
-                            selectedIcon: const Icon(
-                              FluentIcons.settings_24_filled,
+                            selectedIcon: Semantics(
+                              label: S.of(context).Settings,
+                              child: const Icon(
+                                  FluentIcons.settings_24_filled),
                             ),
-                            icon: const Icon(FluentIcons.settings_24_regular),
+                            icon: Semantics(
+                              label: S.of(context).Settings,
+                              child: const Icon(
+                                  FluentIcons.settings_24_regular),
+                            ),
                             label: S.of(context).Settings,
                           ),
                         ],
@@ -129,28 +145,31 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: screenWidth < 450
           ? NavigationBar(
               selectedIndex: widget.navigationShell.currentIndex,
-              labelBehavior: .onlyShowSelected,
+              labelBehavior: NavigationDestinationLabelBehavior
+                  .onlyShowSelected,
               destinations: [
                 NavigationDestination(
                   selectedIcon: const Icon(FluentIcons.home_24_filled),
                   icon: const Icon(FluentIcons.home_24_regular),
                   label: S.of(context).Home,
+                  tooltip: S.of(context).Home,
                 ),
                 NavigationDestination(
                   selectedIcon: const Icon(FluentIcons.library_24_filled),
                   icon: const Icon(FluentIcons.library_24_regular),
                   label: 'Library',
+                  tooltip: 'Library',
                 ),
                 NavigationDestination(
                   selectedIcon: const Icon(FluentIcons.settings_24_filled),
                   icon: const Icon(FluentIcons.settings_24_regular),
                   label: S.of(context).Settings,
+                  tooltip: S.of(context).Settings,
                 ),
               ],
               backgroundColor: Theme.of(
                 context,
               ).colorScheme.surfaceContainerLow,
-              // colo: Theme.of(context).colorScheme.onSurface,
               onDestinationSelected: _goBranch,
             )
           : null,

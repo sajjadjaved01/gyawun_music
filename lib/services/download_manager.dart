@@ -10,6 +10,8 @@ import 'package:http/http.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:yt_music/ytmusic.dart';
 
+import '../core/constants/app_constants.dart';
+import '../core/utils/app_logger.dart';
 import 'file_storage.dart';
 import 'settings_manager.dart';
 import 'stream_client.dart';
@@ -25,9 +27,10 @@ class DownloadManager {
   final Map<String, ValueNotifier<double>> _activeDownloadProgress = {};
   final Map<String, AudioStreamClient> _activeStreamClients = {};
   static const String songsPlaylistId = 'songs';
-  final int maxConcurrentDownloads = 3;
+  static const int maxConcurrentDownloads = AppConstants.maxConcurrentDownloads;
   final Queue<String> _activeDownloads = Queue<String>();
   final Queue<Map> _downloadQueue = Queue<Map>();
+  bool _queueProcessing = false;
 
   DownloadManager() {
     _refreshData();
@@ -47,7 +50,7 @@ class DownloadManager {
           status == 'DOWNLOADING' && !activeIds.contains(id);
       final isInvalidQueued = status == 'QUEUED' && !queuedIds.contains(id);
       if (isInvalidDownloading || isInvalidQueued) {
-        debugPrint("Cleaning up interrupted download: ${song['title']}");
+        AppLogger.warning("Cleaning up interrupted download: ${song['title']}", tag: 'DownloadManager');
         await _updateSongMetadata(id, {'status': 'FAILED'});
       }
     }
@@ -185,7 +188,7 @@ class DownloadManager {
     _activeDownloads.remove(videoId);
     _stopTrackingProgress(videoId);
     await _updateSongMetadata(videoId, {'status': 'DELETED'});
-    _downloadNext();
+    _processQueue();
   }
 
   ValueNotifier<double>? getProgressNotifier(String videoId) {
@@ -227,7 +230,6 @@ class DownloadManager {
   }
 
   Future<void> downloadSong(Map songToDownaload) async {
-    // Added "songs" playlist if needed
     final Map song = {
       ...songToDownaload,
       'playlists':
@@ -239,36 +241,41 @@ class DownloadManager {
             },
           },
     };
-    // Check downloaded songs
-    final Map? downloadSong = _box.get(song['videoId']);
-    if (downloadSong != null) {
+
+    final Map? existing = _box.get(song['videoId']);
+    if (existing != null) {
       if (_activeDownloads.contains(song['videoId'])) {
-        // Already downloading, just update metadata
         await _updateSongMetadata(song['videoId'], {...song});
-        _downloadNext();
         return;
       } else {
-        final String? path = downloadSong['path'];
+        final String? path = existing['path'];
         if (path != null) {
           final file = File(path);
           final exists = await file.exists();
           if (exists) {
-            // Already downloaded, just update metadata
             await _updateSongMetadata(song['videoId'], {
               ...song,
               'status': 'DOWNLOADED',
             });
-            _downloadNext();
             return;
           }
         }
       }
     }
-    // Execute download process
-    if (!await _downloadStart(song)) return;
-    await _downloadSong(song);
-    _downloadEnd(song);
-    _downloadNext();
+
+    if (_activeDownloads.length >= maxConcurrentDownloads) {
+      if (!_downloadQueue.any((s) => s['videoId'] == song['videoId'])) {
+        _downloadQueue.add(song);
+        _notifyQueueChange();
+        await _updateSongMetadata(song['videoId'], {...song, 'status': 'QUEUED'});
+      }
+    } else {
+      _activeDownloads.add(song['videoId']);
+      await _downloadSong(song);
+      _activeDownloads.remove(song['videoId']);
+    }
+
+    _processQueue();
   }
 
   Future<void> _downloadSong(Map song) async {
@@ -317,8 +324,8 @@ class DownloadManager {
       } else {
         throw Exception("File saving failed");
       }
-    } catch (e) {
-      debugPrint("Error in _downloadSong: $e");
+    } catch (e, stackTrace) {
+      AppLogger.error("Download failed for '${song['title']}'", tag: 'DownloadManager', error: e, stackTrace: stackTrace);
       await _updateSongMetadata(song['videoId'], {'status': 'FAILED'});
     } finally {
       _stopTrackingProgress(song['videoId']);
@@ -347,30 +354,28 @@ class DownloadManager {
     }
   }
 
-  Future<bool> _downloadStart(Map song) async {
-    if (_activeDownloads.length >= maxConcurrentDownloads) {
-      _downloadQueue.add(song);
-      _notifyQueueChange();
-      await _updateSongMetadata(song['videoId'], {...song, 'status': 'QUEUED'});
-      return false;
+  /// Drains the pending queue into available download slots.
+  /// Only one concurrent invocation runs at a time.
+  Future<void> _processQueue() async {
+    if (_queueProcessing) return;
+    _queueProcessing = true;
+    try {
+      while (_downloadQueue.isNotEmpty &&
+          _activeDownloads.length < maxConcurrentDownloads) {
+        final next = _downloadQueue.removeFirst();
+        _notifyQueueChange();
+        _activeDownloads.add(next['videoId'] as String);
+        _runWorker(next);
+      }
+    } finally {
+      _queueProcessing = false;
     }
-    _activeDownloads.add(song['videoId']);
-    return true;
   }
 
-  void _downloadEnd(Map song) {
-    if (_activeDownloads.isNotEmpty) {
-      _activeDownloads.remove(song['videoId']);
-    }
-  }
-
-  void _downloadNext() {
-    if (_downloadQueue.isNotEmpty &&
-        _activeDownloads.length < maxConcurrentDownloads) {
-      final next = _downloadQueue.removeFirst();
-      _notifyQueueChange();
-      downloadSong(next);
-    }
+  Future<void> _runWorker(Map song) async {
+    await _downloadSong(song);
+    _activeDownloads.remove(song['videoId']);
+    _processQueue();
   }
 
   Future<String> deleteSong({

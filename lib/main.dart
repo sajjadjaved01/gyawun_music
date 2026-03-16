@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get_it/get_it.dart';
-import 'package:gyawun/themes/theme.dart';
+import 'package:gyawun/core/theme/app_theme.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'core/constants/app_constants.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:m3e_collection/m3e_collection.dart';
@@ -32,33 +33,34 @@ void main() async {
       androidNotificationChannelId: 'com.jhelum.gyawun.audio',
       androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
-      // androidStopForegroundOnPause: false,
     );
   }
 
   if (Platform.isWindows || Platform.isLinux) {
     JustAudioMediaKit.ensureInitialized();
-    JustAudioMediaKit.bufferSize = 8 * 1024 * 1024;
+    JustAudioMediaKit.bufferSize = AppConstants.mediaKitBufferSize;
     JustAudioMediaKit.title = 'Gyawun Music';
     JustAudioMediaKit.prefetchPlaylist = true;
     JustAudioMediaKit.pitch = true;
   }
   await initialiseHive();
-  await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-    overlays: [SystemUiOverlay.top],
-  );
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
+  late final YTConfig? ytConfig;
+  await Future.wait([
+    getYtConfig().then((config) => ytConfig = config),
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.edgeToEdge,
+      overlays: [SystemUiOverlay.top],
+    ),
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]),
+    FileStorage.initialise(),
   ]);
-
-  final ytConfig = await getYtConfig();
   if (ytConfig == null) {
-    // Config fetch failed (no network). Launch app anyway, retry later.
     runApp(
       const MaterialApp(
         home: Scaffold(
@@ -73,11 +75,9 @@ void main() async {
     );
     return;
   }
-  YTMusic ytMusic = YTMusic(config: ytConfig);
+  YTMusic ytMusic = YTMusic(config: ytConfig!);
 
   final GlobalKey<NavigatorState> panelKey = GlobalKey<NavigatorState>();
-
-  await FileStorage.initialise();
   FileStorage fileStorage = FileStorage();
   SettingsManager settingsManager = SettingsManager();
 
@@ -144,19 +144,6 @@ class Gyawun extends StatelessWidget {
               surface: isPureBlack ? Colors.black : null,
               seedColor: primaryColor,
             ).toM3EThemeData(base: AppTheme.dark(primary: primaryColor,isPureBlack: isPureBlack)),
-            // theme: AppTheme.light(
-            //   primary: context.watch<SettingsManager>().dynamicColors &&
-            //           lightScheme != null
-            //       ? lightScheme.primary
-            //       : context.watch<SettingsManager>().accentColor,
-            // ),
-            // darkTheme: AppTheme.dark(
-            //   primary: context.watch<SettingsManager>().dynamicColors &&
-            //           darkScheme != null
-            //       ? darkScheme.primary
-            //       : context.watch<SettingsManager>().accentColor,
-            //   isPureBlack: context.watch<SettingsManager>().amoledBlack,
-            // ),
           ),
         );
       },
@@ -179,7 +166,7 @@ Future<void> initialiseHive() async {
   await Hive.openBox('DOWNLOADS');
 }
 
-Future<YTConfig?>? getYtConfig() async {
+Future<YTConfig?> getYtConfig() async {
   String? visitorData = await Hive.box('SETTINGS').get('VISITOR_ID');
   String language = await Hive.box(
     'SETTINGS',
@@ -200,7 +187,7 @@ Future<YTConfig?>? getYtConfig() async {
   if (visitorData == null || apikey == null || clientVersion == null) {
     try {
       final config = await YTClient.getConfig().timeout(
-        const Duration(seconds: 10),
+        AppConstants.ytConfigFetchTimeout,
       );
       if (config == null) return null;
       final box = Hive.box('SETTINGS');
@@ -214,7 +201,7 @@ Future<YTConfig?>? getYtConfig() async {
       });
       return config;
     } catch (e) {
-      debugPrint('Failed to fetch YT config: $e');
+      debugPrint('[ERROR][YTConfig] Failed to fetch YT config: $e');
       return null;
     }
   } else {

@@ -38,42 +38,55 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        GetIt.I<MediaPlayer>().player.playing
-            ? GetIt.I<MediaPlayer>().player.pause()
-            : GetIt.I<MediaPlayer>().player.play();
-      },
-      child: ValueListenableBuilder(
-        valueListenable: GetIt.I<MediaPlayer>().buttonState,
-        builder: (context, buttonState, child) {
-          if (GetIt.I<MediaPlayer>().player.playing != playing) {
-            playing = GetIt.I<MediaPlayer>().player.playing;
-            playing
-                ? _animationController.forward()
-                : _animationController.reverse();
-          }
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 60,
-            width: 60,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: (context.isDarkMode ? Colors.white : Colors.black)
-                  .withAlpha(50),
-              borderRadius: BorderRadius.circular(
-                  buttonState == ButtonState.playing ? 15 : 40),
+    return ValueListenableBuilder(
+      valueListenable: GetIt.I<MediaPlayer>().buttonState,
+      builder: (context, buttonState, child) {
+        if (GetIt.I<MediaPlayer>().player.playing != playing) {
+          playing = GetIt.I<MediaPlayer>().player.playing;
+          playing
+              ? _animationController.forward()
+              : _animationController.reverse();
+        }
+
+        final isPlaying = buttonState == ButtonState.playing;
+        final isLoading = buttonState == ButtonState.loading;
+        final semanticLabel = isLoading
+            ? 'Loading'
+            : isPlaying
+                ? 'Pause'
+                : 'Play';
+
+        return Semantics(
+          button: true,
+          label: semanticLabel,
+          child: GestureDetector(
+            onTap: () {
+              GetIt.I<MediaPlayer>().player.playing
+                  ? GetIt.I<MediaPlayer>().player.pause()
+                  : GetIt.I<MediaPlayer>().player.play();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 60,
+              width: 60,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: (context.isDarkMode ? Colors.white : Colors.black)
+                    .withAlpha(50),
+                borderRadius: BorderRadius.circular(
+                    isPlaying ? 15 : 40),
+              ),
+              child: isLoading
+                  ? const ExpressiveLoadingIndicator()
+                  : AnimatedIcon(
+                      icon: AnimatedIcons.play_pause,
+                      progress: _animationController,
+                      size: 40,
+                    ),
             ),
-            child: (buttonState == ButtonState.loading)
-                ? const ExpressiveLoadingIndicator()
-                : AnimatedIcon(
-                    icon: AnimatedIcons.play_pause,
-                    progress: _animationController,
-                    size: 40,
-                  ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

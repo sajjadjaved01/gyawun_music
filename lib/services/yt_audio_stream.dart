@@ -32,11 +32,13 @@ class YouTubeAudioSource extends StreamAudioSource {
       }
 
       start ??= 0;
-      end ??= (audioStream.isThrottled
-          ? (end ?? (start + 10379935))
-          : audioStream.size.totalBytes);
-      if (end > audioStream.size.totalBytes) {
-        end = audioStream.size.totalBytes;
+      final totalBytes = audioStream.size.totalBytes;
+      if (end == null) {
+        end = audioStream.isThrottled
+            ? (start + 10379935).clamp(0, totalBytes)
+            : totalBytes;
+      } else if (end > totalBytes) {
+        end = totalBytes;
       }
 
       final stream = ytExplode.videos.streams.get(audioStream, start, end);

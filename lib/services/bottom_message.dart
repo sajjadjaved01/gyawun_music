@@ -1,20 +1,21 @@
-import 'package:fl_toast/fl_toast.dart';
 import 'package:flutter/material.dart';
 
-import '../themes/text_styles.dart';
-import '../utils/adaptive_widgets/theme.dart';
+import '../core/constants/app_constants.dart';
 
 class BottomMessage {
-  static void showText(BuildContext context, String text,
-      {Duration duration = const Duration(milliseconds: 1500)}) {
-    showPlatformToast(
-      child: Text(
-        text,
-        style: smallTextStyle(context, bold: false, opacity: 0.8)
-            .copyWith(color: AdaptiveTheme.of(context).inactiveBackgroundColor),
+  static void showText(
+    BuildContext context,
+    String text, {
+    Duration duration = AppConstants.snackBarDuration,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(text),
+        duration: duration,
+        behavior: SnackBarBehavior.floating,
       ),
-      context: context,
-      duration: duration,
     );
   }
 }
