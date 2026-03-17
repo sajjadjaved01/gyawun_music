@@ -1,8 +1,9 @@
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_wear_os_connectivity/flutter_wear_os_connectivity.dart';
 import 'package:gyawun_shared/gyawun_shared.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+import '../../../../services/wear_bridge.dart';
 
 part 'wear_settings_state.dart';
 
@@ -20,14 +21,13 @@ class WearSettingsCubit extends Cubit<WearSettingsState> {
   }
 
   final Box _settings = Hive.box('SETTINGS');
-  final WearOsConnectivity _wearOs = WearOsConnectivity();
+  final WearBridge _bridge = WearBridge.instance;
 
   // ---------------------------------------------------------------------------
   // Initialisation
   // ---------------------------------------------------------------------------
 
   Future<void> _load() async {
-    // Load persisted preferences first so the UI shows something immediately.
     final syncedRaw = _settings.get(
       _WearKeys.syncedPlaylists,
       defaultValue: <String>[],
@@ -54,31 +54,41 @@ class WearSettingsCubit extends Cubit<WearSettingsState> {
     await _refreshDeviceInfo();
   }
 
-  /// Query the Wearable API for the currently paired watch.
   Future<void> _refreshDeviceInfo() async {
     try {
-      await _wearOs.configureWearableAPI();
+      // Check if Gyawun Wear app is installed
+      final bool wearAppInstalled = await _bridge.isWearAppInstalled();
 
-      final devices = await _wearOs.getConnectedDevices(
-        capabilityName: SyncConstants.watchCapability,
-      );
+      // Find watches with the Gyawun Wear app capability
+      final capableNodes =
+          await _bridge.findCapableNodes(SyncConstants.watchCapability);
 
-      if (devices.isEmpty) {
+      if (capableNodes.isEmpty) {
+        // No watch with our app — check if any watch is connected at all
+        final allNodes = await _bridge.getConnectedNodes();
+        final hasWatch = allNodes.isNotEmpty;
+        final watchName = hasWatch ? allNodes.first['name'] : null;
+
         emit(
           state.copyWith(
-            connectionStatus: WatchConnectionStatus.disconnected,
-            clearWatch: true,
+            connectionStatus: hasWatch
+                ? WatchConnectionStatus.connected
+                : WatchConnectionStatus.disconnected,
+            watchName: watchName,
+            isWearAppInstalled: wearAppInstalled,
+            clearWatch: !hasWatch,
           ),
         );
         return;
       }
 
-      final watch = devices.first;
+      final watch = capableNodes.first;
       emit(
         state.copyWith(
           connectionStatus: WatchConnectionStatus.connected,
-          watchName: watch.name,
-          watchNodeId: watch.id,
+          watchName: watch['name'],
+          watchNodeId: watch['id'],
+          isWearAppInstalled: wearAppInstalled,
         ),
       );
     } catch (e) {
@@ -91,11 +101,12 @@ class WearSettingsCubit extends Cubit<WearSettingsState> {
   // Public actions
   // ---------------------------------------------------------------------------
 
-  /// Refresh the connected watch info (called by pull-to-refresh or on resume).
   Future<void> refresh() => _refreshDeviceInfo();
 
-  /// Toggle syncing of a user playlist identified by its Hive key.
-  Future<void> togglePlaylistSync(String playlistKey, {required bool enabled}) async {
+  Future<void> togglePlaylistSync(
+    String playlistKey, {
+    required bool enabled,
+  }) async {
     final updated = Set<String>.from(state.syncedPlaylistKeys);
     if (enabled) {
       updated.add(playlistKey);
@@ -116,7 +127,6 @@ class WearSettingsCubit extends Cubit<WearSettingsState> {
     emit(state.copyWith(syncHistory: value));
   }
 
-  /// Trigger a full library re-sync to the watch.
   Future<void> triggerSync() async {
     if (state.isSyncing) return;
     final nodeId = state.watchNodeId;
@@ -133,12 +143,8 @@ class WearSettingsCubit extends Cubit<WearSettingsState> {
     );
 
     try {
-      // Request the WearSyncService to push library data by sending a
-      // self-addressed library sync message.  The service handles the actual
-      // Hive reads and DataClient push.
-      await _wearOs.sendMessage(
+      await _bridge.sendMessage(
         SyncConstants.librarySync,
-        data: [],
         targetNodeId: nodeId,
       );
 
@@ -163,7 +169,29 @@ class WearSettingsCubit extends Cubit<WearSettingsState> {
     }
   }
 
-  /// Clear the one-shot action so the UI stops reacting to it.
+  Future<void> installOnWatch() async {
+    try {
+      final result = await _bridge.openPlayStoreOnWatch();
+      if (result) {
+        emit(state.copyWith(lastAction: WearSettingsAction.installSent));
+        return;
+      }
+    } catch (_) {
+      // Play Store approach failed
+    }
+
+    try {
+      final opened = await _bridge.openWearOsCompanion();
+      if (opened) {
+        emit(state.copyWith(lastAction: WearSettingsAction.installSent));
+      } else {
+        emit(state.copyWith(lastAction: WearSettingsAction.installFailed));
+      }
+    } catch (_) {
+      emit(state.copyWith(lastAction: WearSettingsAction.installFailed));
+    }
+  }
+
   void consumeAction() {
     emit(state.copyWith(clearLastAction: true));
   }

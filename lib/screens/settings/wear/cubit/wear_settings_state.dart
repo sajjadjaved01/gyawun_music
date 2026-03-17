@@ -5,7 +5,13 @@ enum WatchConnectionStatus { unknown, connected, disconnected }
 
 /// One-shot actions emitted by [WearSettingsCubit] that the UI should react
 /// to exactly once (e.g. show a snack-bar).
-enum WearSettingsAction { syncStarted, syncCompleted, syncFailed }
+enum WearSettingsAction {
+  syncStarted,
+  syncCompleted,
+  syncFailed,
+  installSent,
+  installFailed,
+}
 
 class WearSettingsState {
   final WatchConnectionStatus connectionStatus;
@@ -18,6 +24,9 @@ class WearSettingsState {
 
   /// Whether the sync operation is currently in progress.
   final bool isSyncing;
+
+  /// Whether the Gyawun Wear app is installed on the watch.
+  final bool? isWearAppInstalled;
 
   /// Unix-millisecond timestamp of the last successful sync, or null.
   final int? lastSyncedAt;
@@ -39,6 +48,7 @@ class WearSettingsState {
     this.watchName,
     this.watchNodeId,
     this.isSyncing = false,
+    this.isWearAppInstalled,
     this.lastSyncedAt,
     this.syncedPlaylistKeys = const {},
     this.syncFavourites = true,
@@ -54,6 +64,7 @@ class WearSettingsState {
     String? watchNodeId,
     bool clearWatch = false,
     bool? isSyncing,
+    bool? isWearAppInstalled,
     int? lastSyncedAt,
     Set<String>? syncedPlaylistKeys,
     bool? syncFavourites,
@@ -66,6 +77,7 @@ class WearSettingsState {
       watchName: clearWatch ? null : (watchName ?? this.watchName),
       watchNodeId: clearWatch ? null : (watchNodeId ?? this.watchNodeId),
       isSyncing: isSyncing ?? this.isSyncing,
+      isWearAppInstalled: isWearAppInstalled ?? this.isWearAppInstalled,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       syncedPlaylistKeys: syncedPlaylistKeys ?? this.syncedPlaylistKeys,
       syncFavourites: syncFavourites ?? this.syncFavourites,

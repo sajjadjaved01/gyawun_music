@@ -86,7 +86,6 @@ dependencies:
   navigation_rail_m3e: ^0.3.5
   m3e_collection: ^0.3.7
   home_widget: ^0.7.0
-  flutter_wear_os_connectivity: ^1.0.0
   video_player: ^2.9.2
 
 dev_dependencies:

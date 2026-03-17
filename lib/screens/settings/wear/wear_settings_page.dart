@@ -34,6 +34,16 @@ class WearSettingsPage extends StatelessWidget {
                 context,
                 'Sync failed. Is your watch connected?',
               );
+            case WearSettingsAction.installSent:
+              BottomMessage.showText(
+                context,
+                'Opening installer on watch...',
+              );
+            case WearSettingsAction.installFailed:
+              BottomMessage.showText(
+                context,
+                'Could not install. Try sideloading via ADB.',
+              );
           }
 
           context.read<WearSettingsCubit>().consumeAction();
@@ -89,6 +99,36 @@ class _WearSettingsView extends StatelessWidget {
                           ),
                           onTap: cubit.refresh,
                         ),
+                        // Install on watch — shown when app is not detected
+                        if (state.isWearAppInstalled != true &&
+                            state.connectionStatus !=
+                                WatchConnectionStatus.unknown)
+                          ExpressiveListTile(
+                            leading: SettingsColorIcon(
+                              icon: FluentIcons.arrow_download_24_filled,
+                              color: const Color.fromARGB(155, 46, 115, 180),
+                            ),
+                            title: const Text('Install on watch'),
+                            subtitle: const Text(
+                              'Get Gyawun Music on your watch',
+                            ),
+                            trailing: const Icon(
+                              FluentIcons.chevron_right_24_filled,
+                            ),
+                            onTap: () => _showInstallSheet(context, cubit),
+                          ),
+                        // Installed indicator
+                        if (state.isWearAppInstalled == true)
+                          ExpressiveListTile(
+                            leading: SettingsColorIcon(
+                              icon: FluentIcons.checkmark_circle_24_filled,
+                              color: const Color.fromARGB(155, 46, 160, 80),
+                            ),
+                            title: const Text('Watch app installed'),
+                            subtitle: const Text(
+                              'Gyawun Music is ready on your watch',
+                            ),
+                          ),
                         ExpressiveListTile(
                           leading: SettingsColorIcon(
                             icon: FluentIcons.arrow_sync_24_filled,
@@ -203,6 +243,129 @@ class _WearSettingsView extends StatelessWidget {
           child: CircularProgressIndicator(strokeWidth: 2),
         );
     }
+  }
+
+  void _showInstallSheet(BuildContext context, WearSettingsCubit cubit) {
+    showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Install on Watch',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 16),
+                // Option 1: Play Store (if published)
+                ListTile(
+                  leading: Icon(
+                    FluentIcons.store_microsoft_24_filled,
+                    color: colorScheme.primary,
+                  ),
+                  title: const Text('Open Play Store on watch'),
+                  subtitle: const Text(
+                    'Opens the app listing on your watch',
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  tileColor: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.5),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    cubit.installOnWatch();
+                  },
+                ),
+                const SizedBox(height: 8),
+                // Option 2: Companion app
+                ListTile(
+                  leading: Icon(
+                    FluentIcons.phone_24_filled,
+                    color: colorScheme.secondary,
+                  ),
+                  title: const Text('Open Wear OS companion'),
+                  subtitle: const Text(
+                    'Galaxy Wearable or Pixel Watch app',
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  tileColor: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.5),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    cubit.installOnWatch();
+                  },
+                ),
+                const SizedBox(height: 8),
+                // Option 3: Sideload instructions
+                ListTile(
+                  leading: Icon(
+                    FluentIcons.code_24_filled,
+                    color: colorScheme.tertiary,
+                  ),
+                  title: const Text('Sideload via ADB'),
+                  subtitle: const Text(
+                    'For development or pre-release builds',
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  tileColor: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.5),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showSideloadGuide(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSideloadGuide(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sideload via ADB'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '1. Enable Developer Options on your watch\n'
+                '   Settings > About watch > tap Build number 7 times\n\n'
+                '2. Enable ADB Debugging\n'
+                '   Settings > Developer options > ADB debugging\n\n'
+                '3. Connect via WiFi or Bluetooth\n'
+                '   adb connect <watch-ip>:5555\n\n'
+                '4. Install the APK\n'
+                '   adb install gyawun-wear.apk\n\n'
+                'Or use Bugjaeger app from your phone for wireless ADB.',
+                style: TextStyle(fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _lastSyncLabel(int? lastSyncedAt) {
