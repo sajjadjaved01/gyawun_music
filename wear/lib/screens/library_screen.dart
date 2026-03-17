@@ -17,8 +17,7 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen>
-    with RotaryScrollMixin {
+class _LibraryScreenState extends State<LibraryScreen> {
   WatchSyncService get _sync => GetIt.I<WatchSyncService>();
 
   @override
@@ -56,9 +55,8 @@ class _LibraryScreenState extends State<LibraryScreen>
     ];
 
     return RotaryScrollWrapper(
-      controller: scrollController,
-      child: ListView.builder(
-        controller: scrollController,
+      child: (controller) => ListView.builder(
+        controller: controller,
         padding: const EdgeInsets.symmetric(vertical: 24),
         itemCount: sections.length,
         itemBuilder: (context, index) {

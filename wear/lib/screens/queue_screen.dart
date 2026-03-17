@@ -17,7 +17,7 @@ class QueueScreen extends StatefulWidget {
   State<QueueScreen> createState() => _QueueScreenState();
 }
 
-class _QueueScreenState extends State<QueueScreen> with RotaryScrollMixin {
+class _QueueScreenState extends State<QueueScreen> {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<WatchMediaPlayer>();
@@ -31,9 +31,8 @@ class _QueueScreenState extends State<QueueScreen> with RotaryScrollMixin {
       valueListenable: player.currentIndex,
       builder: (context, currentIdx, _) {
         return RotaryScrollWrapper(
-          controller: scrollController,
-          child: ListView.builder(
-            controller: scrollController,
+          child: (controller) => ListView.builder(
+            controller: controller,
             padding: const EdgeInsets.symmetric(vertical: 24),
             itemCount: queue.length,
             itemBuilder: (context, index) {

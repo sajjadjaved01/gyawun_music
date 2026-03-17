@@ -104,7 +104,8 @@ class WatchSyncService extends ChangeNotifier {
     _dataSub = _connectivity.dataChanged().listen(
       (DataEvent event) {
         final item = event.dataItem;
-        final path = item.pathUri.path ?? '';
+        // flutter_wear_os_connectivity exposes the path via `uri`.
+        final path = item.uri.path ?? '';
         final payload = item.mapData;
 
         if (path == SyncConstants.dataLibrary) {

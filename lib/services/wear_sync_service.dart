@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_wear_os_connectivity/flutter_wear_os_connectivity.dart';
@@ -152,25 +153,40 @@ class WearSyncService {
   // Inbound — watch → phone
   // ---------------------------------------------------------------------------
 
-  Future<void> _handleMessage(MessageReceiveEvent event) async {
-    final path = event.data.path;
-    final raw = utf8.decode(event.data.data ?? []);
+  // The flutter_wear_os_connectivity package emits dynamic message events from
+  // its messageReceived() stream.  The object has .path and .data fields
+  // (where .data is a Uint8List / List<int>).  We keep the parameter typed as
+  // dynamic so that minor version differences in the package don't cause
+  // compile errors.
+  Future<void> _handleMessage(dynamic event) async {
+    try {
+      final String path = (event.path ?? event.data?.path ?? '') as String;
+      final List<int> rawBytes =
+          (event.data is List ? event.data as List<int> : event.data?.data ?? []) as List<int>;
+      final String payload = utf8.decode(rawBytes);
 
-    switch (path) {
-      case SyncConstants.playbackCommand:
-        await _handlePlaybackCommand(raw);
+      // The source node id may be on the event directly or nested under .data.
+      final String? sourceNodeId =
+          (event.sourceNodeId ?? event.data?.sourceNodeId) as String?;
 
-      case SyncConstants.librarySync:
-        await _handleLibrarySyncRequest(event.data.sourceNodeId);
+      switch (path) {
+        case SyncConstants.playbackCommand:
+          await _handlePlaybackCommand(payload);
 
-      case SyncConstants.downloadRequest:
-        await _handleDownloadRequest(raw, event.data.sourceNodeId);
+        case SyncConstants.librarySync:
+          await _handleLibrarySyncRequest(sourceNodeId);
 
-      case SyncConstants.searchQuery:
-        await _handleSearchRequest(raw, event.data.sourceNodeId);
+        case SyncConstants.downloadRequest:
+          await _handleDownloadRequest(payload, sourceNodeId);
 
-      default:
-        debugPrint('[WearSyncService] Received unknown message path: $path');
+        case SyncConstants.searchQuery:
+          await _handleSearchRequest(payload, sourceNodeId);
+
+        default:
+          debugPrint('[WearSyncService] Unknown message path: $path');
+      }
+    } catch (e) {
+      debugPrint('[WearSyncService] Error dispatching message: $e');
     }
   }
 
@@ -204,9 +220,7 @@ class WearSyncService {
           }
 
         default:
-          debugPrint(
-            '[WearSyncService] Unknown playback command: $command',
-          );
+          debugPrint('[WearSyncService] Unknown playback command: $command');
       }
     } catch (e) {
       debugPrint('[WearSyncService] Error handling playback command: $e');
@@ -227,7 +241,7 @@ class WearSyncService {
       final playlists = libraryBox.values
           .map((v) {
             final m = Map<String, dynamic>.from(v as Map);
-            // Strip songs list to keep message small; watch requests songs separately.
+            // Strip the full songs list; the watch requests song details separately.
             return {
               'title': m['title'],
               'isPredefined': m['isPredefined'],
@@ -266,7 +280,8 @@ class WearSyncService {
         'syncedAt': DateTime.now().millisecondsSinceEpoch,
       });
 
-      // Sync via DataClient (large, persistent) instead of MessageClient.
+      // Use DataClient (persistent) rather than a transient MessageClient call
+      // so the watch can read the data even after brief disconnections.
       await _wearOs.syncData(
         SyncConstants.dataLibrary,
         data: {'json': payload},
@@ -279,6 +294,18 @@ class WearSyncService {
 
   // --- Audio file transfer ---
 
+  /// Handles a request from the watch for a downloaded audio file.
+  ///
+  /// Large files are broken into 100 KB DataClient chunks because the Wearable
+  /// Message API has a hard limit of ~100 KB per message.  Each chunk is stored
+  /// at a distinct DataClient path keyed by [videoId] and chunk index.  The
+  /// watch reassembles the chunks in order.
+  ///
+  /// NOTE: If the underlying [flutter_wear_os_connectivity] version exposes a
+  /// dedicated ChannelClient API (e.g. `openChannel` / `getOutputStream`), that
+  /// is the preferred mechanism and should replace the chunked DataClient
+  /// approach below.  The DataClient path is used as a fallback because it
+  /// works without a persistent low-latency channel.
   Future<void> _handleDownloadRequest(
     String raw,
     String? sourceNodeId,
@@ -316,38 +343,24 @@ class WearSyncService {
       await _sendProgressUpdate(
           sourceNodeId, videoId, 0, totalBytes, 'starting');
 
-      // Transfer the file via ChannelClient.
-      // The flutter_wear_os_connectivity ChannelClient API requires opening a
-      // channel to the remote node, writing to its output stream, then closing.
-      // The exact stream-write API depends on the package version; the steps
-      // below follow the documented WearOsConnectivity.sendFile pattern.
-      //
-      // TODO: Replace with the correct ChannelClient call once the package
-      //       version used by this project is confirmed. The hook points are:
-      //         1. _wearOs.openChannel(path, nodeId)  → WearOsChannel
-      //         2. _wearOs.getOutputStream(channel)   → IOSink / Stream<List<int>>
-      //         3. pipe file bytes, reporting progress via _sendProgressUpdate
-      //         4. _wearOs.closeChannel(channel)
-      //
-      // Fallback: chunk the file and deliver each piece as a DataClient asset.
-      const int chunkSize = 100 * 1024; // 100 KB — safely under 100 KB limit
-      final bytes = await file.readAsBytes();
-      int offset = 0;
+      // Read file and send in 100 KB DataClient chunks.
+      const int chunkSize = 100 * 1024;
+      final Uint8List bytes = await file.readAsBytes();
+      final int totalChunks = (bytes.length / chunkSize).ceil();
       int chunkIndex = 0;
+      int offset = 0;
 
       while (offset < bytes.length) {
-        final end =
-            (offset + chunkSize).clamp(0, bytes.length);
-        final chunk = bytes.sublist(offset, end);
+        final int end = (offset + chunkSize).clamp(0, bytes.length);
+        final Uint8List chunk = bytes.sublist(offset, end);
 
-        // Each chunk is stored as a separate DataClient item keyed by index.
         await _wearOs.syncData(
           '/transfer/$videoId/chunk_$chunkIndex',
           data: {
             'videoId': videoId,
             'chunkIndex': chunkIndex,
-            'totalChunks': (bytes.length / chunkSize).ceil(),
-            'data': chunk,
+            'totalChunks': totalChunks,
+            'bytes': chunk,
           },
           isUrgent: false,
         );
@@ -409,24 +422,20 @@ class WearSyncService {
       final query = req['query'] as String?;
       if (query == null || query.isEmpty) return;
 
-      final results = await GetIt.I<YTMusic>().search(query);
+      final dynamic results = await GetIt.I<YTMusic>().search(query);
 
       // Strip results to essential metadata to stay within message size limits.
-      final compact = (results as List?)
-              ?.whereType<Map>()
-              .map((item) {
-                final m = Map<String, dynamic>.from(item);
-                return {
-                  'videoId': m['videoId'],
-                  'title': m['title'],
-                  'artists': m['artists'],
-                  'thumbnails': m['thumbnails'],
-                  'type': m['type'],
-                };
-              })
-              .take(20)
-              .toList() ??
-          [];
+      final List<Map<String, dynamic>> compact =
+          ((results as List?) ?? []).whereType<Map>().map((item) {
+        final m = Map<String, dynamic>.from(item);
+        return <String, dynamic>{
+          'videoId': m['videoId'],
+          'title': m['title'],
+          'artists': m['artists'],
+          'thumbnails': m['thumbnails'],
+          'type': m['type'],
+        };
+      }).take(20).toList();
 
       final payload = jsonEncode({'query': query, 'results': compact});
       await _wearOs.sendMessage(

@@ -3,10 +3,9 @@ import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:provider/provider.dart';
-import 'package:wearable_rotary/wearable_rotary.dart';
+import 'package:wearable_rotary/wearable_rotary.dart' as rotary;
 import 'package:wear_plus/wear_plus.dart';
 
 import '../services/watch_media_player.dart';
@@ -27,7 +26,7 @@ class NowPlayingScreen extends StatefulWidget {
 
 class _NowPlayingScreenState extends State<NowPlayingScreen>
     with SingleTickerProviderStateMixin {
-  StreamSubscription<RotaryEvent>? _rotarySub;
+  StreamSubscription<rotary.RotaryEvent>? _rotarySub;
 
   // Debounce volume notification to avoid rapid Hive writes.
   Timer? _volumeDebounce;
@@ -35,10 +34,10 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
   @override
   void initState() {
     super.initState();
-    _rotarySub = rotaryEvents.listen(_onRotaryVolume);
+    _rotarySub = rotary.rotaryEvents.listen(_onRotaryVolume);
   }
 
-  void _onRotaryVolume(RotaryEvent event) {
+  void _onRotaryVolume(rotary.RotaryEvent event) {
     final player = context.read<WatchMediaPlayer>();
     final current = player.volume;
     // 0.05 per notch, clamped 0.0 – 1.0.

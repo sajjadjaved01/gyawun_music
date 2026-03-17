@@ -1,95 +1,47 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:wearable_rotary/wearable_rotary.dart';
+import 'package:wear_os_rotary_plugin/wear_os_rotary_plugin.dart';
 
 // ---------------------------------------------------------------------------
 // RotaryScrollWrapper
 //
-// Listens to rotary events (Samsung bezel / Pixel Watch crown) via the
-// wearable_rotary package and drives a [ScrollController] accordingly.
+// Wraps any scrollable widget with WearOsScrollbar from wear_os_rotary_plugin,
+// which handles Samsung bezel / Pixel Watch crown rotary input and displays
+// a circular scrollbar overlay.
 //
-// Wrap any scrollable widget (ListView, SingleChildScrollView, etc.) with
-// this widget to get physical crown/bezel scrolling for free:
-//
+// Usage:
 //   RotaryScrollWrapper(
-//     controller: myScrollController,
-//     child: ListView.builder(
-//       controller: myScrollController,
+//     child: (controller) => ListView.builder(
+//       controller: controller,
 //       ...
 //     ),
 //   )
 // ---------------------------------------------------------------------------
-class RotaryScrollWrapper extends StatefulWidget {
-  final ScrollController controller;
-  final Widget child;
+class RotaryScrollWrapper extends StatelessWidget {
+  final Widget Function(ScrollController controller) child;
 
-  /// How many logical pixels one rotary notch maps to.
-  final double pixelsPerNotch;
+  /// Whether to show the circular scrollbar indicator.
+  final bool showScrollbar;
 
   const RotaryScrollWrapper({
     super.key,
-    required this.controller,
     required this.child,
-    this.pixelsPerNotch = 40.0,
+    this.showScrollbar = true,
   });
 
   @override
-  State<RotaryScrollWrapper> createState() => _RotaryScrollWrapperState();
-}
-
-class _RotaryScrollWrapperState extends State<RotaryScrollWrapper> {
-  StreamSubscription<RotaryEvent>? _sub;
-
-  @override
-  void initState() {
-    super.initState();
-    _sub = rotaryEvents.listen(_onRotary);
-  }
-
-  void _onRotary(RotaryEvent event) {
-    if (!widget.controller.hasClients) return;
-
-    final current = widget.controller.offset;
-    final max = widget.controller.position.maxScrollExtent;
-    final min = widget.controller.position.minScrollExtent;
-
-    // Positive magnitude = clockwise = scroll down; negative = scroll up.
-    final delta = event.magnitude * widget.pixelsPerNotch;
-    final target = (current + delta).clamp(min, max);
-
-    widget.controller.animateTo(
-      target,
-      duration: const Duration(milliseconds: 80),
-      curve: Curves.easeOut,
+  Widget build(BuildContext context) {
+    return WearOsScrollbar(
+      autoHide: true,
+      autoHideDuration: const Duration(seconds: 2),
+      builder: (context, rotaryScrollController) =>
+          child(rotaryScrollController),
     );
   }
-
-  @override
-  void dispose() {
-    _sub?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
 
 // ---------------------------------------------------------------------------
-// Convenience mixin for StatefulWidgets that manage their own ScrollController
-// and want rotary support with minimal boilerplate.
-//
-// Usage:
-//   class _MyScreenState extends State<MyScreen>
-//       with RotaryScrollMixin {
-//     @override
-//     Widget build(BuildContext context) {
-//       return RotaryScrollWrapper(
-//         controller: scrollController,
-//         child: ListView(controller: scrollController, ...),
-//       );
-//     }
-//   }
+// Convenience mixin for StatefulWidgets that need a ScrollController for
+// non-list rotary usage (e.g. volume control on NowPlaying screen).
 // ---------------------------------------------------------------------------
 mixin RotaryScrollMixin<T extends StatefulWidget> on State<T> {
   late final ScrollController scrollController = ScrollController();
