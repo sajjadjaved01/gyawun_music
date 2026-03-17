@@ -26,10 +26,7 @@ class SearchPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => SearchCubit(sl(), endpoint: endpoint),
-      child: _SearchPage(
-        title: endpoint?['query'],
-        isMore: isMore,
-      ),
+      child: _SearchPage(title: endpoint?['query'], isMore: isMore),
     );
   }
 }
@@ -72,74 +69,84 @@ class _SearchPageState extends State<_SearchPage> {
   @override
   Widget build(BuildContext context) {
     return InternetGuard(
-      onConnectivityRestored:(){
-        if(_textEditingController?.text!=null){
+      onConnectivityRestored: () {
+        if (_textEditingController?.text != null) {
           context.read<SearchCubit>().search(_textEditingController!.text);
         }
       },
       child: Scaffold(
         appBar: PreferredSize(
           preferredSize: const AdaptiveAppBar().preferredSize,
-          child: LayoutBuilder(builder: (context, constraints) {
-            return AdaptiveAppBar(
-              title: widget.title != null
-                  ? Text(widget.title!)
-                  : Material(
-                      color: Colors.transparent,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TypeAheadField(
-                              suggestionsCallback: (query) => context
-                                  .read<SearchCubit>()
-                                  .getSuggestions(query),
-                              builder: (context, controller, focusNode) {
-                                _textEditingController = controller;
-                                _focusNode = focusNode;
-                                return AdaptiveTextField(
-                                  focusNode: _focusNode,
-                                  controller: _textEditingController,
-                                  onSubmitted: onSubmit,
-                                  keyboardType: TextInputType.text,
-                                  maxLines: 1,
-                                  autofocus: true,
-                                  textInputAction: TextInputAction.search,
-                                  fillColor: Theme.of(context).colorScheme.surfaceContainer,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 2, horizontal: 8),
-                                  borderRadius: BorderRadius.circular(
-                                      Platform.isWindows ? 4.0 : 35),
-                                  hintText: S.of(context).Search_Gyawun,
-                                  prefix: constraints.maxWidth > 400
-                                      ? null
-                                      : const AdaptiveBackButton(),
-                                  suffix: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _textEditingController?.text = '';
-                                      });
-                                    },
-                                    child: const Icon(FluentIcons.dismiss_24_filled),
-                                  ),
-                                );
-                              },
-                              decorationBuilder: Platform.isWindows
-                                  ? (context, child) {
-                                      return Ink(
-                                        padding: EdgeInsets.zero,
-                                        decoration: BoxDecoration(
-                                          color: AdaptiveTheme.of(context)
-                                              .inactiveBackgroundColor,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: child,
-                                      );
-                                    }
-                                  : null,
-                              itemBuilder: (context, value) {
-                                if (value['type'] == 'TEXT') {
-                                  return AdaptiveListTile(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return AdaptiveAppBar(
+                title: widget.title != null
+                    ? Text(widget.title!)
+                    : Material(
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TypeAheadField(
+                                suggestionsCallback: (query) => context
+                                    .read<SearchCubit>()
+                                    .getSuggestions(query),
+                                builder: (context, controller, focusNode) {
+                                  _textEditingController = controller;
+                                  _focusNode = focusNode;
+                                  return AdaptiveTextField(
+                                    focusNode: _focusNode,
+                                    controller: _textEditingController,
+                                    onSubmitted: onSubmit,
+                                    keyboardType: TextInputType.text,
+                                    maxLines: 1,
+                                    autofocus: true,
+                                    textInputAction: TextInputAction.search,
+                                    fillColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainer,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 2,
+                                      horizontal: 8,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      Platform.isWindows ? 4.0 : 35,
+                                    ),
+                                    hintText: S.of(context).Search_Gyawun,
+                                    prefix: constraints.maxWidth > 400
+                                        ? null
+                                        : const AdaptiveBackButton(),
+                                    suffix: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _textEditingController?.text = '';
+                                        });
+                                      },
+                                      child: const Icon(
+                                        FluentIcons.dismiss_24_filled,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                decorationBuilder: Platform.isWindows
+                                    ? (context, child) {
+                                        return Ink(
+                                          padding: EdgeInsets.zero,
+                                          decoration: BoxDecoration(
+                                            color: AdaptiveTheme.of(
+                                              context,
+                                            ).inactiveBackgroundColor,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: child,
+                                        );
+                                      }
+                                    : null,
+                                itemBuilder: (context, value) {
+                                  if (value['type'] == 'TEXT') {
+                                    return AdaptiveListTile(
                                       leading: value['isHistory'] != null
                                           ? const Icon(Icons.history)
                                           : null,
@@ -150,20 +157,24 @@ class _SearchPageState extends State<_SearchPage> {
                                               value['query'];
                                         });
                                         onSubmit(value['query']);
-                                      });
-                                }
-                                return _SearchListTile(item: value);
-                              },
-                              onSelected: (value) => (),
+                                      },
+                                    );
+                                  }
+                                  return _SearchListTile(item: value);
+                                },
+                                onSelected: (value) => (),
+                                hideOnEmpty: true,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-              automaticallyImplyLeading:
-                  (constraints.maxWidth <= 400) ? false : true,
-            );
-          }),
+                automaticallyImplyLeading: (constraints.maxWidth <= 400)
+                    ? false
+                    : true,
+              );
+            },
+          ),
         ),
         body: BlocBuilder<SearchCubit, SearchState>(
           builder: (context, state) {
@@ -171,13 +182,9 @@ class _SearchPageState extends State<_SearchPage> {
               case SearchInitial():
                 return SizedBox.shrink();
               case SearchLoading():
-                return Center(
-                  child: LoadingIndicatorM3E(),
-                );
+                return Center(child: LoadingIndicatorM3E());
               case SearchError():
-                return Center(
-                  child: Text(state.message ?? ''),
-                );
+                return Center(child: Text(state.message ?? ''));
               case SearchSuccess():
                 return SingleChildScrollView(
                   controller: _scrollController,
@@ -193,15 +200,19 @@ class _SearchPageState extends State<_SearchPage> {
                                 child: Adaptivecard(
                                   borderRadius: BorderRadius.circular(8),
                                   child: _SearchSectionItem(
-                                      section: section, isMore: widget.isMore),
+                                    section: section,
+                                    isMore: widget.isMore,
+                                  ),
                                 ),
                               );
                             }
                             return _SearchSectionItem(
-                                section: section, isMore: widget.isMore);
+                              section: section,
+                              isMore: widget.isMore,
+                            );
                           }),
                           if (state.loadingMore)
-                            const Center(child: ExpressiveLoadingIndicator())
+                            const Center(child: ExpressiveLoadingIndicator()),
                         ],
                       ),
                     ),
@@ -226,8 +237,10 @@ class _SearchSectionItem extends StatelessWidget {
       children: [
         if (section['title'] != null && !isMore)
           AdaptiveListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 4,
+              horizontal: 4,
+            ),
             title: Text(
               section['title'],
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -235,36 +248,36 @@ class _SearchSectionItem extends StatelessWidget {
             trailing: section['trailing']?['text'] != null
                 ? Padding(
                     padding: EdgeInsets.symmetric(
-                        vertical: Platform.isAndroid ? 12 : 0),
+                      vertical: Platform.isAndroid ? 12 : 0,
+                    ),
                     child: AdaptiveOutlinedButton(
-                        onPressed: () {
-                          context.push(
-                            '/search',
-                            extra: {
-                              'endpoint': section['trailing']['endpoint'],
-                              'isMore': true,
-                            },
-                          );
-                        },
-                        child: Text(
-                          section['trailing']['text'],
-                          style: const TextStyle(fontSize: 12),
-                        )),
+                      onPressed: () {
+                        context.push(
+                          '/search',
+                          extra: {
+                            'endpoint': section['trailing']['endpoint'],
+                            'isMore': true,
+                          },
+                        );
+                      },
+                      child: Text(
+                        section['trailing']['text'],
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
                   )
                 : null,
           ),
         ...section['contents'].map((item) {
           return _SearchListTile(item: item);
-        })
+        }),
       ],
     );
   }
 }
 
 class _SearchListTile extends StatelessWidget {
-  const _SearchListTile({
-    required this.item,
-  });
+  const _SearchListTile({required this.item});
   final Map item;
   @override
   Widget build(BuildContext context) {
@@ -280,12 +293,7 @@ class _SearchListTile extends StatelessWidget {
         if (item['videoId'] != null) {
           await GetIt.I<MediaPlayer>().playSong(Map.from(item));
         } else if (item['endpoint'] != null && item['videoId'] == null) {
-          context.push(
-            '/browse',
-            extra: {
-              'endpoint': item['endpoint'],
-            },
-          );
+          context.push('/browse', extra: {'endpoint': item['endpoint']});
         }
       },
       onLongPress: () {
@@ -296,11 +304,7 @@ class _SearchListTile extends StatelessWidget {
         }
       },
       dense: false,
-      title: Text(
-        item['title'],
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(item['title'], maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: item['subtitle'] != null
           ? Text(
               item['subtitle'],
@@ -312,11 +316,10 @@ class _SearchListTile extends StatelessWidget {
       leading: item['thumbnails'] != null && item['thumbnails'].isNotEmpty
           ? ClipRRect(
               borderRadius: BorderRadius.circular(
-                  ['ARTIST', 'PROFILE'].contains(item['type']) ? 30 : 3),
-              child: Image.network(
-                item['thumbnails'].first['url'],
-                width: 50,
-              ))
+                ['ARTIST', 'PROFILE'].contains(item['type']) ? 30 : 3,
+              ),
+              child: Image.network(item['thumbnails'].first['url'], width: 50),
+            )
           : null,
       trailing: item['videoId'] == null && item['endpoint'] != null
           ? const Icon(CupertinoIcons.chevron_right)
