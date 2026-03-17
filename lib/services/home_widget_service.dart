@@ -91,7 +91,7 @@ class HomeWidgetService {
         HomeWidget.saveWidgetData<bool>(_keyIsPlaying, isPlaying),
       ]);
 
-      await HomeWidget.updateWidget(androidName: _androidProvider);
+      await HomeWidget.updateWidget(qualifiedAndroidName: _androidProvider);
     } catch (e) {
       debugPrint('[HomeWidgetService] Failed to update widget: $e');
     }
