@@ -2,5 +2,11 @@
 <resources>
     <string name="appwidget_text">Play</string>
     <string name="add_widget">Add widget</string>
-    <string name="app_widget_description">BlackHole Music</string>
+    <string name="app_widget_description">Gyawun Music Widget</string>
+    <string name="widget_description">Gyawun Music playback controls</string>
+    <string name="widget_not_playing">Not playing</string>
+    <string name="widget_album_art_desc">Album art</string>
+    <string name="widget_previous">Previous</string>
+    <string name="widget_play_pause">Play / Pause</string>
+    <string name="widget_next">Next</string>
 </resources>

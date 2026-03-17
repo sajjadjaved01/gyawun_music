@@ -75,6 +75,15 @@ class SongTile extends StatelessWidget {
                   color: Colors.grey.withValues(alpha: 0.9),
                 ),
               ),
+            if (song['isVideo'] == true)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(
+                  Icons.videocam,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
             Expanded(
               child: Text(
                 artistSubtitle,

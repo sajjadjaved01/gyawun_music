@@ -101,6 +101,25 @@
             android:foregroundServiceType="dataSync"
             android:stopWithTask="false"/>
 
+        <!-- ===== Music home screen widget ===== -->
+        <receiver
+            android:name=".MusicWidgetProvider"
+            android:exported="true"
+            android:label="Gyawun Music">
+
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <!-- Custom button-click actions handled by the provider itself -->
+                <action android:name="com.jhelum.gyawun.widget.ACTION_PREV" />
+                <action android:name="com.jhelum.gyawun.widget.ACTION_PLAY_PAUSE" />
+                <action android:name="com.jhelum.gyawun.widget.ACTION_NEXT" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/music_widget_info" />
+        </receiver>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>

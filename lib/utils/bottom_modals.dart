@@ -130,6 +130,17 @@ class Modals {
     );
   }
 
+  static void showDownloadTypeModal(BuildContext context, Map song) {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: false,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => _DownloadTypeSheet(song: song),
+    );
+  }
+
   static void showDownloadDetailsBottomModal(
     BuildContext context,
     Map playlist,
@@ -1019,8 +1030,7 @@ BottomModalLayout _songBottomModal(BuildContext context, Map song) {
               leading: Icon(AdaptiveIcons.download),
               onTap: () {
                 Navigator.pop(context);
-                BottomMessage.showText(context, S.of(context).Download_Started);
-                GetIt.I<DownloadManager>().downloadSong(song);
+                Modals.showDownloadTypeModal(context, song);
               },
             ),
           AdaptiveListTile(
@@ -1809,4 +1819,198 @@ class SelectionItem<T> {
   final T data;
 
   SelectionItem({required this.title, this.icon, required this.data});
+}
+
+/// Bottom sheet that lets the user choose audio-only or video download,
+/// remembers the choice as the new default, and starts the download.
+class _DownloadTypeSheet extends StatefulWidget {
+  const _DownloadTypeSheet({required this.song});
+
+  final Map song;
+
+  @override
+  State<_DownloadTypeSheet> createState() => _DownloadTypeSheetState();
+}
+
+class _DownloadTypeSheetState extends State<_DownloadTypeSheet> {
+  bool _loadingSizes = true;
+  int? _audioBytes;
+  int? _videoBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSizes();
+  }
+
+  Future<void> _fetchSizes() async {
+    final dm = GetIt.I<DownloadManager>();
+    final videoId = widget.song['videoId'] as String?;
+    if (videoId == null) return;
+
+    final settings = GetIt.I<SettingsManager>();
+    final results = await Future.wait([
+      dm.getAudioStreamSize(videoId),
+      dm.getVideoStreamSize(videoId, settings.videoQuality.height),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _audioBytes = results[0];
+        _videoBytes = results[1];
+        _loadingSizes = false;
+      });
+    }
+  }
+
+  String _formatBytes(int? bytes) {
+    if (bytes == null) return '';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  void _startDownload(bool asVideo) {
+    final settings = GetIt.I<SettingsManager>();
+    settings.downloadType = asVideo ? DownloadType.video : DownloadType.audio;
+    Navigator.pop(context);
+    BottomMessage.showText(context, S.of(context).Download_Started);
+    GetIt.I<DownloadManager>().downloadSong(widget.song, asVideo: asVideo);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant.withAlpha(80),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              'Download as',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          _DownloadOption(
+            icon: Icons.music_note,
+            title: 'Audio Only',
+            subtitle: _loadingSizes
+                ? 'Loading size...'
+                : _audioBytes != null
+                    ? _formatBytes(_audioBytes)
+                    : 'Small file',
+            isLoading: _loadingSizes,
+            onTap: () => _startDownload(false),
+          ),
+          const SizedBox(height: 8),
+          _DownloadOption(
+            icon: Icons.videocam,
+            title: 'Video',
+            subtitle: _loadingSizes
+                ? 'Loading size...'
+                : _videoBytes != null
+                    ? _formatBytes(_videoBytes)
+                    : 'Larger file',
+            isLoading: _loadingSizes,
+            onTap: () => _startDownload(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DownloadOption extends StatelessWidget {
+  const _DownloadOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: colorScheme.onPrimaryContainer),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    if (isLoading)
+                      SizedBox(
+                        height: 12,
+                        width: 60,
+                        child: LinearProgressIndicator(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      )
+                    else
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -127,6 +127,29 @@ class YTMusicPage extends StatelessWidget {
     }
   }
 
+  Future<void> _setVideoQuality(
+    BuildContext context,
+    VideoQuality current,
+  ) async {
+    final selected = await ExpressiveSheet.showSelection(
+      context,
+      title: "Video Download Quality",
+      options: VideoQuality.values
+          .map(
+            (q) => ExpressiveSheetOption(
+              value: q,
+              label: q.label,
+              selected: q == current,
+            ),
+          )
+          .toList(),
+    );
+    if (selected == null) return;
+    if (context.mounted) {
+      context.read<YTMusicCubit>().setVideoQuality(selected);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -221,6 +244,17 @@ class YTMusicPage extends StatelessWidget {
                             onTap: () => _setDownloadingQuality(
                               context,
                               state.downloadQuality,
+                            ),
+                          ),
+                          ExpressiveListTile(
+                            title: const Text('Video Download Quality'),
+                            leading: SettingsColorIcon(
+                              icon: Icons.videocam,
+                            ),
+                            subtitle: Text(state.videoQuality.label),
+                            onTap: () => _setVideoQuality(
+                              context,
+                              state.videoQuality,
                             ),
                           ),
                         ],

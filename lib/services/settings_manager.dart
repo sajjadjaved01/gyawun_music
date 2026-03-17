@@ -21,6 +21,8 @@ class SettingsManager extends ChangeNotifier {
 
   AudioQuality _streamingQuality = AudioQuality.high;
   AudioQuality _downloadQuality = AudioQuality.high;
+  DownloadType _downloadType = DownloadType.audio;
+  VideoQuality _videoQuality = VideoQuality.p480;
   bool _skipSilence = false;
   Color? _accentColor;
   bool _amoledBlack = true;
@@ -42,6 +44,8 @@ class SettingsManager extends ChangeNotifier {
   List<AudioQuality> get audioQualities => _audioQualities;
   AudioQuality get streamingQuality => _streamingQuality;
   AudioQuality get downloadQuality => _downloadQuality;
+  DownloadType get downloadType => _downloadType;
+  VideoQuality get videoQuality => _videoQuality;
   bool get skipSilence => _skipSilence;
 
   Color? get accentColor => _accentColor;
@@ -78,6 +82,8 @@ class SettingsManager extends ChangeNotifier {
         _audioQualities[_box.get('STREAMING_QUALITY', defaultValue: 0)];
     _downloadQuality =
         _audioQualities[_box.get('DOWNLOAD_QUALITY', defaultValue: 0)];
+    _downloadType = DownloadType.values[_box.get('DOWNLOAD_TYPE', defaultValue: 0)];
+    _videoQuality = VideoQuality.values[_box.get('VIDEO_QUALITY', defaultValue: 1)];
     _skipSilence = _box.get('SKIP_SILENCE', defaultValue: false);
     _equalizerEnabled = _box.get('EQUALIZER_ENABLED', defaultValue: false);
     _loudnessEnabled = _box.get('LOUDNESS_ENABLED', defaultValue: false);
@@ -122,6 +128,18 @@ class SettingsManager extends ChangeNotifier {
   set downloadQuality(AudioQuality value) {
     _box.put('DOWNLOAD_QUALITY', _audioQualities.indexOf(value));
     _downloadQuality = value;
+    notifyListeners();
+  }
+
+  set downloadType(DownloadType value) {
+    _box.put('DOWNLOAD_TYPE', value.index);
+    _downloadType = value;
+    notifyListeners();
+  }
+
+  set videoQuality(VideoQuality value) {
+    _box.put('VIDEO_QUALITY', value.index);
+    _videoQuality = value;
     notifyListeners();
   }
 
@@ -219,6 +237,19 @@ bool getDarkness(int themeMode) {
 }
 
 enum AudioQuality { high, low }
+
+enum DownloadType { audio, video }
+
+enum VideoQuality {
+  p360(360),
+  p480(480),
+  p720(720);
+
+  const VideoQuality(this.height);
+  final int height;
+
+  String get label => '${height}p';
+}
 
 List<Map<String, String>> _countries = [
   {"name": "Algeria", "value": "DZ"},

@@ -231,15 +231,19 @@ class DownloadManager {
         final isDeleted = status == 'DELETED';
         final isFailed = status == 'FAILED';
         if (isDeleted || isFailed || isFileMissing) {
-          downloadSong(song);
+          // Preserve the original download type (audio vs video) when restoring.
+          final bool wasVideo = song['isVideo'] == true || song['downloadAsVideo'] == true;
+          downloadSong(song, asVideo: wasVideo);
         }
       }
     }
   }
 
-  Future<void> downloadSong(Map songToDownaload) async {
+  Future<void> downloadSong(Map songToDownaload, {bool? asVideo}) async {
+    final bool isVideo = asVideo ?? (GetIt.I<SettingsManager>().downloadType == DownloadType.video);
     final Map song = {
       ...songToDownaload,
+      'downloadAsVideo': isVideo,
       'playlists':
           songToDownaload['playlists'] ??
           {
@@ -298,45 +302,95 @@ class DownloadManager {
         throw Exception('Storage permissions not granted.');
       }
 
-      AudioOnlyStreamInfo audioSource = await _getSongInfo(
-        song['videoId'],
-        quality: GetIt.I<SettingsManager>().downloadQuality.name.toLowerCase(),
-      );
+      final bool isVideo = song['downloadAsVideo'] == true;
 
-      int total = audioSource.size.totalBytes;
-      BytesBuilder received = BytesBuilder();
-
-      final streamClient = AudioStreamClient();
-      _activeStreamClients[song['videoId']] = streamClient;
-
-      Stream<List<int>> stream = streamClient.getAudioStream(
-        audioSource,
-        start: 0,
-        end: total,
-      );
-
-      await for (var data in stream) {
-        received.add(data);
-        _updateTrackingProgress(song['videoId'], received.length / total);
-      }
-      _activeStreamClients.remove(song['videoId']);
-      File? file = await GetIt.I<FileStorage>().saveMusic(
-        received.takeBytes(),
-        song,
-      );
-      if (file != null) {
-        await _updateSongMetadata(song['videoId'], {
-          'status': 'DOWNLOADED',
-          'path': file.path,
-        });
+      if (isVideo) {
+        await _downloadVideoSong(song);
       } else {
-        throw Exception("File saving failed");
+        await _downloadAudioSong(song);
       }
     } catch (e, stackTrace) {
       AppLogger.error("Download failed for '${song['title']}'", tag: 'DownloadManager', error: e, stackTrace: stackTrace);
       await _updateSongMetadata(song['videoId'], {'status': 'FAILED'});
     } finally {
       _stopTrackingProgress(song['videoId']);
+    }
+  }
+
+  Future<void> _downloadAudioSong(Map song) async {
+    AudioOnlyStreamInfo audioSource = await _getSongInfo(
+      song['videoId'],
+      quality: GetIt.I<SettingsManager>().downloadQuality.name.toLowerCase(),
+    );
+
+    int total = audioSource.size.totalBytes;
+    BytesBuilder received = BytesBuilder();
+
+    final streamClient = AudioStreamClient();
+    _activeStreamClients[song['videoId']] = streamClient;
+
+    Stream<List<int>> stream = streamClient.getAudioStream(
+      audioSource,
+      start: 0,
+      end: total,
+    );
+
+    await for (var data in stream) {
+      received.add(data);
+      _updateTrackingProgress(song['videoId'], received.length / total);
+    }
+    _activeStreamClients.remove(song['videoId']);
+    File? file = await GetIt.I<FileStorage>().saveMusic(
+      received.takeBytes(),
+      song,
+    );
+    if (file != null) {
+      await _updateSongMetadata(song['videoId'], {
+        'status': 'DOWNLOADED',
+        'path': file.path,
+        'isVideo': false,
+      });
+    } else {
+      throw Exception("File saving failed");
+    }
+  }
+
+  Future<void> _downloadVideoSong(Map song) async {
+    final targetHeight = GetIt.I<SettingsManager>().videoQuality.height;
+    final videoSource = await _getMuxedVideoStreamInfo(
+      song['videoId'],
+      targetHeight: targetHeight,
+    );
+
+    int total = videoSource.size.totalBytes;
+    BytesBuilder received = BytesBuilder();
+
+    final streamClient = AudioStreamClient();
+    _activeStreamClients[song['videoId']] = streamClient;
+
+    Stream<List<int>> stream = streamClient.getAudioStream(
+      videoSource,
+      start: 0,
+      end: total,
+    );
+
+    await for (var data in stream) {
+      received.add(data);
+      _updateTrackingProgress(song['videoId'], received.length / total);
+    }
+    _activeStreamClients.remove(song['videoId']);
+    File? file = await GetIt.I<FileStorage>().saveVideo(
+      received.takeBytes(),
+      song,
+    );
+    if (file != null) {
+      await _updateSongMetadata(song['videoId'], {
+        'status': 'DOWNLOADED',
+        'path': file.path,
+        'isVideo': true,
+      });
+    } else {
+      throw Exception("Video file saving failed");
     }
   }
 
@@ -455,6 +509,61 @@ class DownloadManager {
       return quality == 'low' ? streamInfos.first : streamInfos.last;
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<MuxedStreamInfo> _getMuxedVideoStreamInfo(
+    String videoId, {
+    int targetHeight = 480,
+  }) async {
+    StreamManifest manifest = await ytExplode.videos.streamsClient
+        .getManifest(
+          videoId,
+          requireWatchPage: true,
+          ytClients: [YoutubeApiClient.androidVr],
+        );
+
+    final muxed = manifest.muxed.toList();
+    if (muxed.isEmpty) {
+      throw Exception('No muxed video streams available for $videoId');
+    }
+
+    // Sort by video height ascending and pick closest to targetHeight.
+    muxed.sort((a, b) => a.videoResolution.height.compareTo(b.videoResolution.height));
+
+    MuxedStreamInfo selected = muxed.first;
+    for (final stream in muxed) {
+      if (stream.videoResolution.height <= targetHeight) {
+        selected = stream;
+      } else {
+        break;
+      }
+    }
+    return selected;
+  }
+
+  /// Returns the estimated size in bytes for a video download at the given quality,
+  /// or null if unavailable.
+  Future<int?> getVideoStreamSize(String videoId, int targetHeight) async {
+    try {
+      final stream = await _getMuxedVideoStreamInfo(videoId, targetHeight: targetHeight);
+      return stream.size.totalBytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Returns the estimated size in bytes for an audio download,
+  /// or null if unavailable.
+  Future<int?> getAudioStreamSize(String videoId) async {
+    try {
+      final stream = await _getSongInfo(
+        videoId,
+        quality: GetIt.I<SettingsManager>().downloadQuality.name.toLowerCase(),
+      );
+      return stream.size.totalBytes;
+    } catch (_) {
+      return null;
     }
   }
 }

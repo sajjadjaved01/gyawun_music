@@ -8,6 +8,7 @@ class YTMusicState {
 
   final AudioQuality streamingQuality;
   final AudioQuality downloadQuality;
+  final VideoQuality videoQuality;
 
   final bool translateLyrics;
   final bool personalisedContent;
@@ -19,6 +20,7 @@ class YTMusicState {
     required this.autofetchSongs,
     required this.streamingQuality,
     required this.downloadQuality,
+    required this.videoQuality,
     required this.translateLyrics,
     required this.personalisedContent,
     required this.visitorId,
@@ -30,6 +32,7 @@ class YTMusicState {
     bool? autofetchSongs,
     dynamic streamingQuality,
     dynamic downloadQuality,
+    dynamic videoQuality,
     bool? translateLyrics,
     bool? personalisedContent,
     String? visitorId,
@@ -40,6 +43,7 @@ class YTMusicState {
       autofetchSongs: autofetchSongs ?? this.autofetchSongs,
       streamingQuality: streamingQuality ?? this.streamingQuality,
       downloadQuality: downloadQuality ?? this.downloadQuality,
+      videoQuality: videoQuality ?? this.videoQuality,
       translateLyrics: translateLyrics ?? this.translateLyrics,
       personalisedContent: personalisedContent ?? this.personalisedContent,
       visitorId: visitorId ?? this.visitorId,

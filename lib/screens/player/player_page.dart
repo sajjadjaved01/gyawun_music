@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gyawun/screens/player/widgets/play_pause_buton.dart';
 import 'package:gyawun/utils/song_thumbnail.dart';
+import 'widgets/video_artwork.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -24,6 +25,7 @@ import '../../themes/dark.dart';
 import '../../themes/text_styles.dart';
 import '../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../utils/bottom_modals.dart';
+import 'widgets/gesture_overlay.dart';
 import 'widgets/lyrics_box.dart';
 import 'widgets/queue_list.dart';
 
@@ -390,6 +392,42 @@ class Artwork extends StatelessWidget {
   final Function setShowLyrics;
   final void Function(ImageProvider)? onImageReady;
 
+  Widget _buildArtworkContent(MediaItem song) {
+    final extras = song.extras ?? {};
+    final isVideo = extras['isVideo'] == true;
+    final path = extras['path'] as String?;
+
+    final thumbnail = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(30),
+            spreadRadius: 10,
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SongThumbnail(
+          song: extras,
+          onImageReady: onImageReady,
+        ),
+      ),
+    );
+
+    if (isVideo && path != null) {
+      return VideoArtwork(
+        path: path,
+        width: width,
+        fallback: thumbnail,
+      );
+    }
+    return thumbnail;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -402,36 +440,17 @@ class Artwork extends StatelessWidget {
             : SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    return GestureDetector(
-                      onTap: () {
-                        setShowLyrics();
-                      },
+                    return GestureOverlay(
+                      onTap: () => setShowLyrics(),
+                      onSwipeDown: () => context.pop(),
+                      width: width,
                       child: Center(
                         child: showLyrics
                             ? LyricsBox(
                                 currentSong: song!,
                                 size: Size(width, width),
                               )
-                            : Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withAlpha(30),
-                                      spreadRadius: 10,
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: SongThumbnail(
-                                    song: song!.extras!,
-                                    onImageReady: onImageReady,
-                                  ),
-                                ),
-                              ),
+                            : _buildArtworkContent(song!),
                       ),
                     );
                   },

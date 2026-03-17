@@ -107,7 +107,11 @@ class FileStorage {
     }
   }
 
-  Future<File?> saveMusic(List<int> data, Map song, {extension = 'm4a'}) async {
+  Future<File?> saveVideo(List<int> data, Map song) async {
+    return saveMusic(data, song, extension: 'mp4', writeTags: false);
+  }
+
+  Future<File?> saveMusic(List<int> data, Map song, {extension = 'm4a', bool writeTags = true}) async {
     String fileName = song['title'];
     final RegExp avoid = RegExp(r'[\.\\\*\:\(\)\"\?#/;\|]');
     fileName = fileName.replaceAll(avoid, '').replaceAll("'", '');
@@ -127,23 +131,25 @@ class FileStorage {
       }
       await file.writeAsBytes(data, flush: true);
 
-      try {
-        Response res = await get(
-            Uri.parse(getEnhancedImage(song['thumbnails'].first['url'])));
-        Tag tag = Tag(
-            title: song['title'],
-            trackArtist:
-                song['artists']?.map((artist) => artist['name']).join(','),
-            album: song['album']?['name'],
-            pictures: [
-              Picture(
-                bytes: res.bodyBytes,
-                pictureType: PictureType.coverFront,
-              )
-            ]);
-        await AudioTags.write(file.path, tag);
-      } catch (e) {
-        await file.writeAsBytes(data, flush: true);
+      if (writeTags) {
+        try {
+          Response res = await get(
+              Uri.parse(getEnhancedImage(song['thumbnails'].first['url'])));
+          Tag tag = Tag(
+              title: song['title'],
+              trackArtist:
+                  song['artists']?.map((artist) => artist['name']).join(','),
+              album: song['album']?['name'],
+              pictures: [
+                Picture(
+                  bytes: res.bodyBytes,
+                  pictureType: PictureType.coverFront,
+                )
+              ]);
+          await AudioTags.write(file.path, tag);
+        } catch (e) {
+          await file.writeAsBytes(data, flush: true);
+        }
       }
       return file;
     } catch (e) {

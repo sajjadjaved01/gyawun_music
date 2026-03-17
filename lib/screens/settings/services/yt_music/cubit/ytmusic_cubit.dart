@@ -30,6 +30,7 @@ class YTMusicCubit extends Cubit<YTMusicState> {
           autofetchSongs: GetIt.I<SettingsManager>().autofetchSongs,
           streamingQuality: GetIt.I<SettingsManager>().streamingQuality,
           downloadQuality: GetIt.I<SettingsManager>().downloadQuality,
+          videoQuality: GetIt.I<SettingsManager>().videoQuality,
           translateLyrics: Hive.box(
             'SETTINGS',
           ).get('TRANSLATE_LYRICS', defaultValue: false),
@@ -56,6 +57,7 @@ class YTMusicCubit extends Cubit<YTMusicState> {
         autofetchSongs: _settings.autofetchSongs,
         streamingQuality: _settings.streamingQuality,
         downloadQuality: _settings.downloadQuality,
+        videoQuality: _settings.videoQuality,
         translateLyrics: _box.get('TRANSLATE_LYRICS', defaultValue: false),
         personalisedContent: _box.get(
           'PERSONALISED_CONTENT',
@@ -84,6 +86,10 @@ class YTMusicCubit extends Cubit<YTMusicState> {
 
   void setDownloadQuality(AudioQuality quality) {
     _settings.downloadQuality = quality;
+  }
+
+  void setVideoQuality(VideoQuality quality) {
+    _settings.videoQuality = quality;
   }
 
   Future<void> setTranslateLyrics(bool value) async {

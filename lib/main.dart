@@ -21,6 +21,7 @@ import 'generated/l10n.dart';
 import 'services/download_manager.dart';
 import 'services/download_notification_service.dart';
 import 'services/file_storage.dart';
+import 'services/home_widget_service.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
 import 'services/media_player.dart';
@@ -94,6 +95,9 @@ void main() async {
     await downloadNotifications.initialize();
     downloadNotifications.attach(downloadManager);
     GetIt.I.registerSingleton<DownloadNotificationService>(downloadNotifications);
+
+    // Home screen widget — start syncing player state to the widget
+    HomeWidgetService.instance.init(mediaPlayer);
   }
 
   GetIt.I.registerSingleton(panelKey);
