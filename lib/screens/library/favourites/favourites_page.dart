@@ -7,7 +7,6 @@ import 'package:gyawun/core/widgets/expressive_app_bar.dart';
 import 'package:gyawun/core/widgets/song_tile.dart';
 import 'package:gyawun/services/media_player.dart';
 import 'package:gyawun/themes/text_styles.dart';
-import 'package:yt_music/mixins/browsing.dart';
 
 import '../../../../generated/l10n.dart';
 import '../../../../utils/bottom_modals.dart';
