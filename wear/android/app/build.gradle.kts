@@ -17,19 +17,9 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-/* ---------- key.properties ---------- */
-
-val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    FileInputStream(keystorePropertiesFile).use {
-        keystoreProperties.load(it)
-    }
-}
-
 android {
     namespace = "com.jhelum.gyawun"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -43,47 +33,22 @@ android {
     }
 
     defaultConfig {
+        // MUST match the phone app applicationId for Wearable Data Layer pairing.
         applicationId = "com.jhelum.gyawun"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 30   // Wear OS 3+
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    /* ---------- Flavors ---------- */
-
-    flavorDimensions += "default"
-
-    productFlavors {
-        create("beta") {
-            dimension = "default"
-            applicationIdSuffix = ".beta"
-            resValue("string", "app_name", "Gyawun Music Beta")
-        }
-
-        create("production") {
-            dimension = "default"
-            resValue("string", "app_name", "Gyawun Music")
-        }
-    }
-
-    /* ---------- Signing ---------- */
-
-    signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String?
-        }
-    }
-
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-            ndk {
-                debugSymbolLevel = "none"
-            }
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 

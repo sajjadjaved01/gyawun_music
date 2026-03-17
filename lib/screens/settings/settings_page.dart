@@ -95,6 +95,21 @@ class SettingsPage extends StatelessWidget {
                               FluentIcons.chevron_right_24_filled,
                             ),
                           ),
+                          if (Platform.isAndroid)
+                            ExpressiveListTile(
+                              leading: SettingsColorIcon(
+                                icon: FluentIcons.smartwatch_24_filled,
+                                color: const Color.fromARGB(155, 70, 141, 92),
+                              ),
+                              title: const Text('Wear OS'),
+                              subtitle: const Text(
+                                'Watch sync & companion settings',
+                              ),
+                              onTap: () => context.go('/settings/wear'),
+                              trailing: const Icon(
+                                FluentIcons.chevron_right_24_filled,
+                              ),
+                            ),
                         ],
                       ),
                       SizedBox(height: 24),

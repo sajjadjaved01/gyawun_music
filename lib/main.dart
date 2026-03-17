@@ -22,6 +22,7 @@ import 'services/download_manager.dart';
 import 'services/download_notification_service.dart';
 import 'services/file_storage.dart';
 import 'services/home_widget_service.dart';
+import 'services/wear_sync_service.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
 import 'services/media_player.dart';
@@ -98,6 +99,9 @@ void main() async {
 
     // Home screen widget — start syncing player state to the widget
     HomeWidgetService.instance.init(mediaPlayer);
+
+    // Wear OS sync — start syncing player state to watch
+    WearSyncService.instance.init(mediaPlayer);
   }
 
   GetIt.I.registerSingleton(panelKey);

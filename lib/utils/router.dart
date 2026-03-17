@@ -24,6 +24,7 @@ import 'package:gyawun/screens/settings/player/player_settings_page.dart';
 import 'package:gyawun/screens/settings/privacy/privacy_page.dart';
 import 'package:gyawun/screens/settings/services/yt_music/yt_music_page.dart';
 import 'package:gyawun/screens/settings/settings_page.dart';
+import 'package:gyawun/screens/settings/wear/wear_settings_page.dart';
 import 'package:gyawun/screens/shell/app_shell.dart';
 
 GoRouter router = GoRouter(
@@ -195,6 +196,10 @@ List<StatefulShellBranch> branches = [
           GoRoute(
             path: 'about',
             builder: (context, state) => const AboutPage(),
+          ),
+          GoRoute(
+            path: 'wear',
+            builder: (context, state) => const WearSettingsPage(),
           ),
         ]),
   ])
