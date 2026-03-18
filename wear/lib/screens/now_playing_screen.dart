@@ -84,12 +84,11 @@ class _NowPlayingBody extends StatelessWidget {
         return ValueListenableBuilder<ProgressBarState>(
           valueListenable: player.progressBarState,
           builder: (context, progress, _) {
-            final double progressValue =
-                progress.total.inMilliseconds > 0
-                    ? (progress.current.inMilliseconds /
-                            progress.total.inMilliseconds)
-                        .clamp(0.0, 1.0)
-                    : 0.0;
+            final double progressValue = progress.total.inMilliseconds > 0
+                ? (progress.current.inMilliseconds /
+                          progress.total.inMilliseconds)
+                      .clamp(0.0, 1.0)
+                : 0.0;
 
             return Stack(
               alignment: Alignment.center,
@@ -176,8 +175,8 @@ class _AlbumArt extends StatelessWidget {
         fit: BoxFit.cover,
         width: diameter,
         height: diameter,
-        placeholder: (_, __) => const _ArtPlaceholder(),
-        errorWidget: (_, __, ___) => const _ArtPlaceholder(),
+        placeholder: (_, _) => const _ArtPlaceholder(),
+        errorWidget: (_, _, _) => const _ArtPlaceholder(),
       );
     } else {
       image = const _ArtPlaceholder();
@@ -187,10 +186,26 @@ class _AlbumArt extends StatelessWidget {
     if (isAmbient) {
       image = ColorFiltered(
         colorFilter: const ColorFilter.matrix(<double>[
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0,      0,      0,      1, 0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
         ]),
         child: image,
       );
@@ -230,10 +245,10 @@ class _SongInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleColor =
-        isAmbient ? const Color(0xFFAAAAAA) : Colors.white;
-    final artistColor =
-        isAmbient ? const Color(0xFF666666) : const Color(0xFFAAAAAA);
+    final titleColor = isAmbient ? const Color(0xFFAAAAAA) : Colors.white;
+    final artistColor = isAmbient
+        ? const Color(0xFF666666)
+        : const Color(0xFFAAAAAA);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -256,10 +271,7 @@ class _SongInfo extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: artistColor,
-            fontSize: 11,
-          ),
+          style: TextStyle(color: artistColor, fontSize: 11),
         ),
       ],
     );
@@ -298,8 +310,8 @@ class _ControlsRow extends StatelessWidget {
               icon: isLoading
                   ? null
                   : isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
+                  ? Icons.pause_rounded
+                  : Icons.play_arrow_rounded,
               size: 38,
               isLoading: isLoading,
               onTap: () => player.togglePlayPause(),

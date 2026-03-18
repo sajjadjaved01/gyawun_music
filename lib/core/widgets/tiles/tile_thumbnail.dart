@@ -26,8 +26,7 @@ class TileThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-    final borderRadius =
-        isArtist ? size / 2 : 8.0;
+    final borderRadius = isArtist ? size / 2 : 8.0;
 
     if (url == null) {
       return SizedBox(
@@ -49,8 +48,7 @@ class TileThumbnail extends StatelessWidget {
           fit: BoxFit.cover,
           memCacheWidth: (size * pixelRatio).round(),
           memCacheHeight: (size * pixelRatio).round(),
-          errorWidget: (_, __, ___) =>
-              Icon(Icons.music_note, size: size * 0.5),
+          errorWidget: (_, _, _) => Icon(Icons.music_note, size: size * 0.5),
         ),
       ),
     );

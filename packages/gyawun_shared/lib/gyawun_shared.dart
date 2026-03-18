@@ -1,5 +1,5 @@
 /// Shared models and constants for Gyawun Music.
-library gyawun_shared;
+library;
 
 export 'models/song_model.dart';
 export 'models/playlist_model.dart';

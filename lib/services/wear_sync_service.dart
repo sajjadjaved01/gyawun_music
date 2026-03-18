@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
@@ -175,8 +174,7 @@ class WearSyncService {
     if (player == null) return;
 
     try {
-      final Map<String, dynamic> cmd =
-          jsonDecode(raw) as Map<String, dynamic>;
+      final Map<String, dynamic> cmd = jsonDecode(raw) as Map<String, dynamic>;
       final command = cmd['command'] as String?;
 
       switch (command) {
@@ -209,18 +207,16 @@ class WearSyncService {
       final favouritesBox = Hive.box('FAVOURITES');
       final historyBox = Hive.box('SONG_HISTORY');
 
-      final playlists = libraryBox.values
-          .map((v) {
-            final m = Map<String, dynamic>.from(v as Map);
-            return {
-              'title': m['title'],
-              'isPredefined': m['isPredefined'],
-              'createdAt': m['createdAt'],
-              'songCount': (m['songs'] as List?)?.length ?? 0,
-              'thumbnails': m['thumbnails'],
-            };
-          })
-          .toList();
+      final playlists = libraryBox.values.map((v) {
+        final m = Map<String, dynamic>.from(v as Map);
+        return {
+          'title': m['title'],
+          'isPredefined': m['isPredefined'],
+          'createdAt': m['createdAt'],
+          'songCount': (m['songs'] as List?)?.length ?? 0,
+          'thumbnails': m['thumbnails'],
+        };
+      }).toList();
 
       final favourites = favouritesBox.values.map((v) {
         final m = Map<String, dynamic>.from(v as Map);
@@ -250,24 +246,17 @@ class WearSyncService {
         'syncedAt': DateTime.now().millisecondsSinceEpoch,
       });
 
-      await _bridge.syncData(
-        SyncConstants.dataLibrary,
-        json: payload,
-      );
+      await _bridge.syncData(SyncConstants.dataLibrary, json: payload);
     } catch (e) {
       debugPrint('[WearSyncService] Failed to send library data: $e');
     }
   }
 
-  Future<void> _handleDownloadRequest(
-    String raw,
-    String? sourceNodeId,
-  ) async {
+  Future<void> _handleDownloadRequest(String raw, String? sourceNodeId) async {
     if (sourceNodeId == null) return;
 
     try {
-      final Map<String, dynamic> req =
-          jsonDecode(raw) as Map<String, dynamic>;
+      final Map<String, dynamic> req = jsonDecode(raw) as Map<String, dynamic>;
       final videoId = req['videoId'] as String?;
       if (videoId == null) return;
 
@@ -287,14 +276,18 @@ class WearSyncService {
 
       final file = File(path);
       if (!await file.exists()) {
-        await _sendProgressUpdate(
-            sourceNodeId, videoId, -1, 0, 'file_missing');
+        await _sendProgressUpdate(sourceNodeId, videoId, -1, 0, 'file_missing');
         return;
       }
 
       final totalBytes = await file.length();
       await _sendProgressUpdate(
-          sourceNodeId, videoId, 0, totalBytes, 'starting');
+        sourceNodeId,
+        videoId,
+        0,
+        totalBytes,
+        'starting',
+      );
 
       const int chunkSize = 100 * 1024;
       final Uint8List bytes = await file.readAsBytes();
@@ -329,7 +322,12 @@ class WearSyncService {
       }
 
       await _sendProgressUpdate(
-          sourceNodeId, videoId, totalBytes, totalBytes, 'done');
+        sourceNodeId,
+        videoId,
+        totalBytes,
+        totalBytes,
+        'done',
+      );
     } catch (e) {
       debugPrint('[WearSyncService] Download transfer error: $e');
     }
@@ -359,31 +357,30 @@ class WearSyncService {
     }
   }
 
-  Future<void> _handleSearchRequest(
-    String raw,
-    String? sourceNodeId,
-  ) async {
+  Future<void> _handleSearchRequest(String raw, String? sourceNodeId) async {
     if (sourceNodeId == null) return;
 
     try {
-      final Map<String, dynamic> req =
-          jsonDecode(raw) as Map<String, dynamic>;
+      final Map<String, dynamic> req = jsonDecode(raw) as Map<String, dynamic>;
       final query = req['query'] as String?;
       if (query == null || query.isEmpty) return;
 
       final dynamic results = await GetIt.I<YTMusic>().search(query);
 
-      final List<Map<String, dynamic>> compact =
-          ((results as List?) ?? []).whereType<Map>().map((item) {
-        final m = Map<String, dynamic>.from(item);
-        return <String, dynamic>{
-          'videoId': m['videoId'],
-          'title': m['title'],
-          'artists': m['artists'],
-          'thumbnails': m['thumbnails'],
-          'type': m['type'],
-        };
-      }).take(20).toList();
+      final List<Map<String, dynamic>> compact = ((results as List?) ?? [])
+          .whereType<Map>()
+          .map((item) {
+            final m = Map<String, dynamic>.from(item);
+            return <String, dynamic>{
+              'videoId': m['videoId'],
+              'title': m['title'],
+              'artists': m['artists'],
+              'thumbnails': m['thumbnails'],
+              'type': m['type'],
+            };
+          })
+          .take(20)
+          .toList();
 
       final payload = jsonEncode({'query': query, 'results': compact});
       await _bridge.sendMessage(
