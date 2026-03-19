@@ -116,8 +116,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "Downloading": MessageLookupByLibrary.simpleMessage("Downloading"),
     "Downloads": MessageLookupByLibrary.simpleMessage("Downloads"),
     "Dynamic_Colors": MessageLookupByLibrary.simpleMessage("Dynamic Colors"),
-    "Edit": MessageLookupByLibrary.simpleMessage("Edit"),
-    "Edit_Playlist": MessageLookupByLibrary.simpleMessage("Edit Playlist"),
     "Enable_Equalizer": MessageLookupByLibrary.simpleMessage(
       "Enable Equalizer",
     ),
@@ -131,9 +129,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Enter Visitor Id",
     ),
     "Equalizer": MessageLookupByLibrary.simpleMessage("Equalizer"),
+    "Failed": MessageLookupByLibrary.simpleMessage("Failed"),
     "Favourites": MessageLookupByLibrary.simpleMessage("Favourites"),
     "Feature_Request": MessageLookupByLibrary.simpleMessage("Feature Request"),
-    "File_Not_Found": MessageLookupByLibrary.simpleMessage("File not found"),
+    "FileNotFound": MessageLookupByLibrary.simpleMessage("File not found"),
     "Go_To_Downloads": MessageLookupByLibrary.simpleMessage("Go to Downloads"),
     "Google_Account": MessageLookupByLibrary.simpleMessage("Google Account"),
     "Gyawun": MessageLookupByLibrary.simpleMessage("Gyawun"),
@@ -159,17 +158,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "No_Internet_Connection": MessageLookupByLibrary.simpleMessage(
       "No Internet Connection",
     ),
-    "No_Offline_Songs": MessageLookupByLibrary.simpleMessage(
-      "No offline songs available",
-    ),
     "Organisation": MessageLookupByLibrary.simpleMessage("Organisation"),
-    "Other_Results": MessageLookupByLibrary.simpleMessage("Other Results"),
     "Pay_With_UPI": MessageLookupByLibrary.simpleMessage("Pay with UPI"),
     "Payment_Methods": MessageLookupByLibrary.simpleMessage("Payment Methods"),
     "Personalised_Content": MessageLookupByLibrary.simpleMessage(
       "Personalised Content",
     ),
-    "Play_All": MessageLookupByLibrary.simpleMessage("Play All"),
     "Play_Next": MessageLookupByLibrary.simpleMessage("Play Next"),
     "Playback_History_Deleted": MessageLookupByLibrary.simpleMessage(
       "Playback History Deleted",
@@ -181,7 +175,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "Playlists": MessageLookupByLibrary.simpleMessage("Playlists"),
     "Progress": MessageLookupByLibrary.simpleMessage("Progress"),
     "Queued": MessageLookupByLibrary.simpleMessage("Queued"),
-    "Queued_Count": m0,
+    "QueuedCount": m0,
     "Remove": MessageLookupByLibrary.simpleMessage("Remove"),
     "Remove_All_History_Message": MessageLookupByLibrary.simpleMessage(
       "Are you sure you want to clear all history?",
@@ -217,9 +211,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Restoring Missing Songs...",
     ),
     "Retry": MessageLookupByLibrary.simpleMessage("Retry"),
-    "Rotate_Device": MessageLookupByLibrary.simpleMessage(
-      "Rotate your device to type.",
-    ),
+    "Retry_All": MessageLookupByLibrary.simpleMessage("Retry All"),
     "Save": MessageLookupByLibrary.simpleMessage("Save"),
     "Saved": MessageLookupByLibrary.simpleMessage("Saved"),
     "Search_Gyawun": MessageLookupByLibrary.simpleMessage("Search Gyawun"),
@@ -228,9 +220,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "Search_Settings": MessageLookupByLibrary.simpleMessage("Search Settings"),
     "Select_Backup": MessageLookupByLibrary.simpleMessage("Select Backup"),
-    "Select_Playlist_Icon": MessageLookupByLibrary.simpleMessage(
-      "Select Playlist Icon",
-    ),
     "Settings": MessageLookupByLibrary.simpleMessage("Settings"),
     "Share": MessageLookupByLibrary.simpleMessage("Share"),
     "Sheikh_Haziq": MessageLookupByLibrary.simpleMessage("Sheikh Haziq"),
@@ -254,14 +243,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "Telegram": MessageLookupByLibrary.simpleMessage("Telegram"),
     "Theme_Mode": MessageLookupByLibrary.simpleMessage("Theme Mode"),
-    "Top_Results": MessageLookupByLibrary.simpleMessage("Top Results"),
     "Translate_Lyrics": MessageLookupByLibrary.simpleMessage(
       "Translate Lyrics",
     ),
     "Version": MessageLookupByLibrary.simpleMessage("Version"),
-    "View_Equalizer": MessageLookupByLibrary.simpleMessage(
-      "Play a song to see the equalizer.",
-    ),
     "Visitor_Id": MessageLookupByLibrary.simpleMessage("Visitor Id"),
     "Window_Effect": MessageLookupByLibrary.simpleMessage("Window Effect"),
     "YTMusic": MessageLookupByLibrary.simpleMessage("YTMusic"),

@@ -21,11 +21,14 @@ class DownloadingPage extends StatelessWidget {
         body: BlocBuilder<DownloadingCubit, DownloadingState>(
           builder: (context, state) {
             return switch (state) {
-              DownloadingLoading() => const Center(
-                child: CircularProgressIndicator(),
-              ),
+              DownloadingLoading() =>
+                const Center(child: CircularProgressIndicator()),
               DownloadingError(:final message) => Center(child: Text(message)),
-              DownloadingLoaded(:final downloading, :final queued) =>
+              DownloadingLoaded(
+                :final downloading,
+                :final queued,
+                :final failed,
+              ) =>
                 CustomScrollView(
                   slivers: [
                     if (downloading.isNotEmpty) ...[
@@ -36,8 +39,9 @@ class DownloadingPage extends StatelessWidget {
                       ),
                       SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, index) =>
-                              DownloadingSongTile(song: downloading[index]),
+                          (context, index) => DownloadingSongTile(
+                            song: downloading[index],
+                          ),
                           childCount: downloading.length,
                         ),
                       ),
@@ -45,14 +49,39 @@ class DownloadingPage extends StatelessWidget {
                     if (queued.isNotEmpty) ...[
                       SliverToBoxAdapter(
                         child: DownloadingSectionTile(
-                          title: S.of(context).Queued_Count(queued.length),
+                          title: S.of(context).QueuedCount(queued.length),
                         ),
                       ),
                       SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, index) =>
-                              DownloadingSongTile(song: queued[index]),
+                          (context, index) => DownloadingSongTile(
+                            song: queued[index],
+                          ),
                           childCount: queued.length,
+                        ),
+                      ),
+                    ],
+                    if (failed.isNotEmpty) ...[
+                      SliverToBoxAdapter(
+                        child: DownloadingSectionTile(
+                          title: '${S.of(context).Failed} (${failed.length})',
+                          trailing: TextButton(
+                            onPressed: () {
+                              context
+                                  .read<DownloadingCubit>()
+                                  .retryAllFailed();
+                            },
+                            child: Text(S.of(context).Retry_All),
+                          ),
+                        ),
+                      ),
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => DownloadingSongTile(
+                            song: failed[index],
+                            isFailed: true,
+                          ),
+                          childCount: failed.length,
                         ),
                       ),
                     ],
