@@ -37,8 +37,9 @@ class LibraryCubit extends Cubit<LibraryState> {
 
   void _emitCurrentState() {
     try {
-      final downloadedCount =
-          _downloadsBox.values.where((e) => e['status'] == 'DOWNLOADED').length;
+      final downloadedCount = _downloadsBox.values
+          .where((e) => e['status'] == 'DOWNLOADED')
+          .length;
 
       final smartService = SmartPlaylistService();
 

@@ -95,7 +95,9 @@ void main() async {
     final downloadNotifications = DownloadNotificationService();
     await downloadNotifications.initialize();
     downloadNotifications.attach(downloadManager);
-    GetIt.I.registerSingleton<DownloadNotificationService>(downloadNotifications);
+    GetIt.I.registerSingleton<DownloadNotificationService>(
+      downloadNotifications,
+    );
 
     // Home screen widget — start syncing player state to the widget
     HomeWidgetService.instance.init(mediaPlayer);
@@ -157,11 +159,17 @@ class Gyawun extends StatelessWidget {
             theme: ColorScheme.fromSeed(
               seedColor: primaryColor,
             ).toM3EThemeData(base: AppTheme.light(primary: primaryColor)),
-            darkTheme: ColorScheme.fromSeed(
-              brightness: Brightness.dark,
-              surface: isPureBlack ? Colors.black : null,
-              seedColor: primaryColor,
-            ).toM3EThemeData(base: AppTheme.dark(primary: primaryColor,isPureBlack: isPureBlack)),
+            darkTheme:
+                ColorScheme.fromSeed(
+                  brightness: Brightness.dark,
+                  surface: isPureBlack ? Colors.black : null,
+                  seedColor: primaryColor,
+                ).toM3EThemeData(
+                  base: AppTheme.dark(
+                    primary: primaryColor,
+                    isPureBlack: isPureBlack,
+                  ),
+                ),
           ),
         );
       },
