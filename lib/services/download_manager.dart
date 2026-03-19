@@ -12,92 +12,59 @@ import 'package:yt_music/ytmusic.dart';
 
 import 'file_storage.dart';
 import 'settings_manager.dart';
-import 'favourites_manager.dart';
 import 'stream_client.dart';
 
+Box _box = Hive.box('DOWNLOADS');
 YoutubeExplode ytExplode = YoutubeExplode();
 
-class DownloadCanceledException implements Exception {}
-
 class DownloadManager {
-  final Box _box;
   Client client = Client();
-  ValueNotifier<List<Map>> downloadsNotifier = ValueNotifier([]);
-  ValueNotifier<Map<String, Map>> playlistsNotifier = ValueNotifier({});
+  ValueNotifier<List<Map>> downloads = ValueNotifier([]);
+  ValueNotifier<Map<String, Map>> downloadsByPlaylist = ValueNotifier({});
+  ValueNotifier<List<Map>> downloadQueue = ValueNotifier([]);
   final Map<String, ValueNotifier<double>> _activeDownloadProgress = {};
-  static const String songsPlaylistId = 'SNGS';
-  final int maxConcurrentDownloads = 3; // Limit concurrent downloads
-  final Queue<String> _activeDownloads =
-      Queue<String>(); // Currently active downloads
-  final Queue<Map> _downloadQueue = Queue<Map>(); // Queue for pending downloads
+  final Map<String, AudioStreamClient> _activeStreamClients = {};
+  static const String songsPlaylistId = 'songs';
+  final int maxConcurrentDownloads = 3;
+  final Queue<String> _activeDownloads = Queue<String>();
+  final Queue<Map> _downloadQueue = Queue<Map>();
 
-  Map get downloads => _box.toMap();
-
-  Listenable songListenable(String songId) {
-    return _box.listenable(keys: [songId]);
-  }
-
-  Map? getDownload(String songId) {
-    return _box.get(songId);
-  }
-
-  Map getCleanSong(Map song) {
-    final Map clean = Map.from(song);
-    clean.remove('status');
-    clean.remove('path');
-    clean.remove('playlists');
-    return clean;
-  }
-
-  List? getDownloadedSongs(String? playlistId) {
-    List? allSongs;
-    if (playlistId == null) {
-      allSongs = downloadsNotifier.value;
-    } else {
-      allSongs = playlistsNotifier.value[playlistId]?["songs"];
-    }
-    return allSongs
-        ?.where((s) => getDownload(s['videoId'])?['status'] == 'DOWNLOADED')
-        .map((s) => getCleanSong(s))
-        .toList();
-  }
-
-  DownloadManager._(this._box) {
-    _cleanAndMigrateData();
+  DownloadManager() {
     _refreshData();
+    _cleanupDownloads();
     _box.listenable().addListener(() {
       _refreshData();
     });
   }
 
-  static Future<DownloadManager> create() async {
-    final boxName = 'DOWNLOADS';
-    await Hive.openBox(boxName);
-    final instance = DownloadManager._(Hive.box(boxName));
-    return instance;
-  }
-
-  Future<void> _cleanAndMigrateData() async {
+  void _cleanupDownloads() async {
     final activeIds = _activeDownloads.toSet();
     final queuedIds = _downloadQueue.map((e) => e['videoId']).toSet();
-    final mapToUpdate = <String, Map>{};
-
-    for (final key in _box.keys) {
-      final Map song = Map.from(_box.get(key) as Map);
-      final id = song['videoId'] ?? key.toString();
-      String status = song['status'] ?? '';
-
-      // 1) CHECK INTERRUPTED DOWNLOADS
+    for (Map song in downloads.value) {
+      final id = song['videoId'];
+      final status = song['status'];
       final isInvalidDownloading =
           status == 'DOWNLOADING' && !activeIds.contains(id);
       final isInvalidQueued = status == 'QUEUED' && !queuedIds.contains(id);
       if (isInvalidDownloading || isInvalidQueued) {
         debugPrint("Cleaning up interrupted download: ${song['title']}");
-        song['status'] = 'DELETED';
-        mapToUpdate[key.toString()] = song;
+        await _updateSongMetadata(id, {'status': 'FAILED'});
       }
+    }
+  }
 
-      // 2) MIGRATE OLD DOWNLOADS TO SONGS PLAYLIST
+  Future<void> _refreshData() async {
+    // -----------------------------
+    // 0) LOAD DOWNLOADS FROM HIVE
+    // -----------------------------
+    downloads.value = _box.values.toList().cast<Map>();
+
+    // -----------------------------
+    // 1) MIGRATE OLD DOWNLOADS → SONGS
+    // -----------------------------
+    bool needsSave = false;
+
+    for (final song in downloads.value) {
       if (song["playlists"] == null || song["playlists"] is! Map) {
         song["playlists"] = {
           songsPlaylistId: {
@@ -109,29 +76,39 @@ class DownloadManager {
                 DateTime.now().millisecondsSinceEpoch,
           },
         };
-        mapToUpdate[key.toString()] = song;
-      } else if (song["playlists"] is Map &&
-          (song["playlists"] as Map).keys.contains("songs")) {
-        // 2) RENAME OLD SONGS PLAYLIST
-        final pl = song["playlists"].remove("songs");
-        song["playlists"][songsPlaylistId] = pl;
-        mapToUpdate[key.toString()] = song;
+        needsSave = true;
       }
     }
-    // 1) UPDATE DOWNLOADS
-    if (mapToUpdate.isNotEmpty) {
-      await _box.putAll(mapToUpdate);
+
+    if (needsSave) {
+      await _box.clear();
+      await _box.addAll(downloads.value);
     }
-  }
 
-  Future<void> _refreshData() async {
-    // 1) LOAD DOWNLOADS FROM HIVE
-    downloadsNotifier.value = _box.values.toList().cast<Map>();
+    // -----------------------------
+    // 2) PURGE DELETED DOWNLOADS
+    // -----------------------------
+    bool removedDeleted = false;
 
-    // 2) BUILD PLAYLIST MAP
+    downloads.value.removeWhere((song) {
+      if (song["status"] == "DELETED") {
+        removedDeleted = true;
+        return true;
+      }
+      return false;
+    });
+
+    if (removedDeleted) {
+      await _box.clear();
+      await _box.addAll(downloads.value);
+    }
+
+    // -----------------------------
+    // 3) BUILD PLAYLIST MAP
+    // -----------------------------
     final Map<String, Map<String, dynamic>> playlists = {};
 
-    for (final song in downloadsNotifier.value) {
+    for (final song in downloads.value) {
       final Map songPlaylists = Map.from(song["playlists"] ?? {});
 
       for (final entry in songPlaylists.entries) {
@@ -148,10 +125,7 @@ class DownloadManager {
               () => {
                 "id": id,
                 "title": title,
-                "type":
-                    id == songsPlaylistId || id == FavouritesManager.playlistId
-                    ? "PLAYLIST"
-                    : "ALBUM",
+                "type": id == songsPlaylistId ? "SONGS" : "ALBUM",
                 "songs": <Map<String, dynamic>>[],
               },
             )["songs"]
@@ -165,7 +139,9 @@ class DownloadManager {
       }
     }
 
-    // 3) SORT SONGS INSIDE PLAYLISTS
+    // -----------------------------
+    // 4) SORT SONGS INSIDE PLAYLISTS
+    // -----------------------------
     for (final playlist in playlists.values) {
       final String playlistId = playlist["id"];
 
@@ -176,17 +152,40 @@ class DownloadManager {
       });
     }
 
-    // 4) UPDATE STATE IF CHANGED
+    // -----------------------------
+    // 5) UPDATE STATE IF CHANGED
+    // -----------------------------
     if (!const DeepCollectionEquality().equals(
-      playlistsNotifier.value,
+      downloadsByPlaylist.value,
       playlists,
     )) {
-      playlistsNotifier.value = playlists;
+      downloadsByPlaylist.value = playlists;
     }
   }
 
   List<Map> getDownloadQueue() {
     return _downloadQueue.toList();
+  }
+
+  void _notifyQueueChange() {
+    downloadQueue.value = List<Map>.from(_downloadQueue);
+  }
+
+  Future<void> cancelDownload(String videoId) async {
+    // Remove from queue if queued
+    _downloadQueue.removeWhere((song) => song['videoId'] == videoId);
+    _notifyQueueChange();
+
+    // Cancel active download by closing its stream client
+    if (_activeStreamClients.containsKey(videoId)) {
+      _activeStreamClients[videoId]!.close();
+      _activeStreamClients.remove(videoId);
+    }
+
+    _activeDownloads.remove(videoId);
+    _stopTrackingProgress(videoId);
+    await _updateSongMetadata(videoId, {'status': 'DELETED'});
+    _downloadNext();
   }
 
   ValueNotifier<double>? getProgressNotifier(String videoId) {
@@ -210,27 +209,21 @@ class DownloadManager {
   }
 
   Future<void> restoreDownloads({List? songs}) async {
-    final songsToRestore = songs ?? downloadsNotifier.value;
+    final songsToRestore = songs ?? downloads.value;
     for (var song in songsToRestore) {
-      final storedSong = _box.get(song['videoId']);
-      if (storedSong != null) {
-        final status = storedSong['status'];
-        final path = storedSong['path'];
+      if (_box.get(song['videoId']) != null) {
+        final status = song['status'];
+        final path = song['path'];
         final isFileMissing =
             status == 'DOWNLOADED' &&
             (path == null || !(await File(path).exists()));
         final isDeleted = status == 'DELETED';
-        if (isDeleted || isFileMissing) {
-          downloadSong(storedSong);
+        final isFailed = status == 'FAILED';
+        if (isDeleted || isFailed || isFileMissing) {
+          downloadSong(song);
         }
       }
     }
-  }
-
-  Future<void> setDownloads(Map downloads) async {
-    await Future.forEach(downloads.entries, (entry) async {
-      _box.put(entry.key, entry.value);
-    });
   }
 
   Future<void> downloadSong(Map songToDownaload) async {
@@ -249,10 +242,7 @@ class DownloadManager {
     // Check downloaded songs
     final Map? downloadSong = _box.get(song['videoId']);
     if (downloadSong != null) {
-      final queueSong = _downloadQueue.firstWhereOrNull(
-        (item) => item['videoId'] == song['videoId'],
-      );
-      if (_activeDownloads.contains(song['videoId']) || queueSong != null) {
+      if (_activeDownloads.contains(song['videoId'])) {
         // Already downloading, just update metadata
         await _updateSongMetadata(song['videoId'], {...song});
         _downloadNext();
@@ -289,7 +279,7 @@ class DownloadManager {
       });
       _startTrackingProgress(song['videoId']);
 
-      if (!(await GetIt.I<FileStorage>().requestPermissions())) {
+      if (!(await FileStorage.requestPermissions())) {
         throw Exception('Storage permissions not granted.');
       }
 
@@ -298,33 +288,27 @@ class DownloadManager {
         quality: GetIt.I<SettingsManager>().downloadQuality.name.toLowerCase(),
       );
 
-      _ensureActive(song);
-
       int total = audioSource.size.totalBytes;
       BytesBuilder received = BytesBuilder();
 
-      Stream<List<int>> stream = AudioStreamClient().getAudioStream(
+      final streamClient = AudioStreamClient();
+      _activeStreamClients[song['videoId']] = streamClient;
+
+      Stream<List<int>> stream = streamClient.getAudioStream(
         audioSource,
         start: 0,
         end: total,
       );
 
-      _ensureActive(song);
-
       await for (var data in stream) {
-        _ensureActive(song);
-
         received.add(data);
         _updateTrackingProgress(song['videoId'], received.length / total);
       }
-
+      _activeStreamClients.remove(song['videoId']);
       File? file = await GetIt.I<FileStorage>().saveMusic(
         received.takeBytes(),
         song,
       );
-
-      _ensureActive(song);
-
       if (file != null) {
         await _updateSongMetadata(song['videoId'], {
           'status': 'DOWNLOADED',
@@ -333,11 +317,9 @@ class DownloadManager {
       } else {
         throw Exception("File saving failed");
       }
-    } on DownloadCanceledException {
-      debugPrint("Download cancelled by user: ${song['videoId']}");
     } catch (e) {
       debugPrint("Error in _downloadSong: $e");
-      await _updateSongMetadata(song['videoId'], {'status': 'DELETED'});
+      await _updateSongMetadata(song['videoId'], {'status': 'FAILED'});
     } finally {
       _stopTrackingProgress(song['videoId']);
     }
@@ -368,17 +350,12 @@ class DownloadManager {
   Future<bool> _downloadStart(Map song) async {
     if (_activeDownloads.length >= maxConcurrentDownloads) {
       _downloadQueue.add(song);
+      _notifyQueueChange();
       await _updateSongMetadata(song['videoId'], {...song, 'status': 'QUEUED'});
       return false;
     }
     _activeDownloads.add(song['videoId']);
     return true;
-  }
-
-  void _ensureActive(Map song) {
-    if (!_activeDownloads.contains(song['videoId'])) {
-      throw DownloadCanceledException();
-    }
   }
 
   void _downloadEnd(Map song) {
@@ -390,50 +367,30 @@ class DownloadManager {
   void _downloadNext() {
     if (_downloadQueue.isNotEmpty &&
         _activeDownloads.length < maxConcurrentDownloads) {
-      downloadSong(_downloadQueue.removeFirst());
-    }
-  }
-
-  Future<void> _deleteSongInstance(Map song) async {
-    // Remove Song from Queue
-    if (song['status'] == "QUEUED") {
-      _downloadQueue.removeWhere((item) => item['videoId'] == song['videoId']);
-    }
-    // Stop in-progress download
-    else if (song['status'] == "DOWNLOADING") {
-      _downloadEnd(song);
-    }
-    // Delete Song from box
-    await _box.delete(song['videoId']);
-    // Remove file if exists
-    if (song['path'] != null && await File(song['path']).exists()) {
-      await File(song['path']).delete();
+      final next = _downloadQueue.removeFirst();
+      _notifyQueueChange();
+      downloadSong(next);
     }
   }
 
   Future<String> deleteSong({
     required String key,
     String playlistId = songsPlaylistId,
+    String? path,
   }) async {
     Map? song = _box.get(key);
-    final Map playlists = song?['playlists'];
-    if (song != null && (playlists.keys.contains(playlistId))) {
-      if (playlists.length == 1) {
-        await _deleteSongInstance(song);
-      } else {
-        // Remove playlist from Song Instance
-        song['playlists'].remove(playlistId);
+    if (song != null && song['playlists'].keys.contains(playlistId)) {
+      song['playlists'].remove(playlistId);
+      if (song['playlists'].isNotEmpty) {
         await _box.put(key, song);
+      } else {
+        await _box.delete(key);
+        if (path != null && await File(path).exists()) {
+          await File(path).delete();
+        }
       }
     }
     return 'Song deleted successfully.';
-  }
-
-  Future<void> deleteAllSongs() async {
-    List<Map> songs = _box.values.toList().cast<Map>();
-    for (Map song in songs) {
-      _deleteSongInstance(song);
-    }
   }
 
   Future<void> updateStatus(String key, String status) async {
@@ -444,36 +401,14 @@ class DownloadManager {
     }
   }
 
-  Future<List> _getSongs({
-    String? playlistId,
-    int maxContinuations = 50, // playlist and albums with up to 24 * 51 songs
-  }) async {
-    final songs = [];
-    if (playlistId != null) {
-      Map result = await GetIt.I<YTMusic>().getNextSongList(
-        playlistId: playlistId,
-      );
-      songs.addAll(result['contents']);
-      String? continuation = result['continuation'];
-      while (maxContinuations > 0 && continuation != null) {
-        result = await GetIt.I<YTMusic>().getNextSongList(
-          continuation: continuation,
-        );
-        songs.addAll(result['contents']);
-        continuation = result['continuation'];
-        maxContinuations -= 1;
-      }
-    }
-    return songs;
-  }
-
   Future<void> downloadPlaylist(Map playlist) async {
     List songs = playlist['isPredefined'] == false
         ? playlist['songs']
-        : await _getSongs(
+        : playlist['type'] == 'ARTIST'
+        ? await GetIt.I<YTMusic>().getNextSongList(
             playlistId: playlist['playlistId'],
-            maxContinuations: playlist['type'] == 'ARTIST' ? 0 : 50,
-          );
+          )
+        : await GetIt.I<YTMusic>().getPlaylistSongs(playlist['playlistId']);
     int timestamp = DateTime.now().millisecondsSinceEpoch;
     for (Map song in songs) {
       downloadSong({
